@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>One Dream Community – Document Selection</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+  :root {
+    --odc-green: #4a7a3c;
+    --odc-deep: #2f4a2a;
+    --odc-light-green: #f4faf3;
+    --odc-soft: #e6efdb;
+    --odc-border: #d9dfcc;
+    --ink: #1a2017;
+    --ink-soft: #444c40;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: linear-gradient(180deg, #f4f6ee 0%, #eaf0e0 100%);
+    color: var(--ink);
+    font-family: "Helvetica Neue","Segoe UI",Arial,sans-serif;
+    line-height: 1.55;
+    margin: 0; min-height: 100vh;
+  }
+  .topbar {
+    background: #fff;
+    border-bottom: 1px solid var(--odc-border);
+    padding: 14px 28px;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .topbar img { height: 42px; width: auto; }
+  .topbar h1 { font-size: 1.05rem; margin: 0; color: var(--odc-green); font-weight: 700; }
+  .topbar small { color: #888; font-size: .78rem; letter-spacing: 0.05em; text-transform: uppercase; }
+
+  main { max-width: 880px; margin: 0 auto; padding: 36px 24px 80px 24px; }
+
+  .page-head { margin-bottom: 28px; padding-bottom: 18px; border-bottom: 1px solid var(--odc-border); }
+  .page-head h2 { font-size: 1.8rem; font-weight: 800; margin: 0 0 6px 0; color: #122; letter-spacing: -0.01em; }
+  .page-head h2 em { font-style: italic; color: var(--odc-green); }
+  .page-head p { margin: 0; color: var(--ink-soft); }
+
+  .section { margin-bottom: 26px; background: #fff; border: 1px solid var(--odc-border); border-radius: 10px; padding: 18px 22px; box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 4px 12px -4px rgba(0,0,0,0.05); }
+  .section-h { font-size: .82rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--odc-green); margin: 0 0 4px 0; }
+  .section-sub { font-size: .85rem; color: #666; margin: 0 0 14px 0; }
+
+  /* Document choice cards */
+  .doc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .doc-grid.full { grid-template-columns: 1fr; }
+  .doc-choice {
+    display: flex; align-items: flex-start; gap: 11px;
+    padding: 12px 14px;
+    border: 1px solid var(--odc-border);
+    border-radius: 8px;
+    background: #fafdf6;
+    cursor: pointer;
+    transition: all .14s ease;
+  }
+  .doc-choice:hover { border-color: var(--odc-green); background: var(--odc-light-green); }
+  .doc-choice.checked { border-color: var(--odc-green); background: var(--odc-soft); box-shadow: inset 0 0 0 1px var(--odc-green); }
+  .doc-choice input { margin-top: 3px; width: 17px; height: 17px; accent-color: var(--odc-green); flex-shrink: 0; cursor: pointer; }
+  .doc-choice .dc-body { flex: 1; }
+  .doc-choice .dc-title { font-weight: 600; font-size: .95rem; color: #122; }
+  .doc-choice .dc-meta { font-size: .78rem; color: #666; margin-top: 2px; }
+  .doc-choice .dc-tag { display: inline-block; background: var(--odc-soft); color: var(--odc-green); font-size: .7rem; font-weight: 700; padding: 2px 6px; border-radius: 3px; margin-left: 6px; vertical-align: middle; letter-spacing: 0.04em; text-transform: uppercase; }
+  .doc-choice .dc-tag.warn { background: #fbe8d0; color: #8b4a00; }
+  .doc-choice.disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+
+  /* Contract radio buttons (large) */
+  .contract-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 4px; }
+  .contract-opt {
+    display: flex; flex-direction: column; align-items: center; text-align: center;
+    padding: 18px 14px;
+    border: 2px solid var(--odc-border);
+    border-radius: 8px;
+    background: #fafdf6;
+    cursor: pointer;
+    transition: all .14s ease;
+  }
+  .contract-opt:hover { border-color: var(--odc-green); background: var(--odc-light-green); }
+  .contract-opt.checked { border-color: var(--odc-green); background: var(--odc-soft); }
+  .contract-opt input { display: none; }
+  .contract-opt .ci-icon { font-size: 1.6rem; margin-bottom: 6px; }
+  .contract-opt .ci-name { font-weight: 700; font-size: .95rem; color: #122; }
+  .contract-opt .ci-desc { font-size: .76rem; color: #666; margin-top: 2px; }
+
+  /* None option */
+  .contract-none { grid-column: 1 / -1; padding: 10px; border: 1px dashed #bbb; border-radius: 6px; background: #f9f9f5; text-align: center; cursor: pointer; font-size: .85rem; color: #777; transition: all .14s ease; }
+  .contract-none:hover { border-color: var(--odc-green); color: var(--odc-green); }
+  .contract-none.checked { background: var(--odc-soft); border-color: var(--odc-green); color: var(--odc-green); border-style: solid; }
+  .contract-none input { display: none; }
+
+  /* Action bar */
+  .action-bar {
+    position: sticky; bottom: 0;
+    background: #fff;
+    border-top: 1px solid var(--odc-border);
+    padding: 16px 24px;
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 12px;
+    margin-top: 28px;
+    border-radius: 8px;
+    box-shadow: 0 -4px 12px rgba(0,0,0,0.04);
+  }
+  .selected-summary { font-size: .88rem; color: var(--ink-soft); }
+  .selected-summary strong { color: var(--odc-green); font-weight: 700; }
+
+  .btn-odc { background: var(--odc-deep); color: #fff; border: 1px solid var(--odc-deep); padding: 9px 22px; font-weight: 600; }
+  .btn-odc:hover { background: var(--odc-green); border-color: var(--odc-green); color: #fff; }
+  .btn-odc:disabled { background: #aab7a0; border-color: #aab7a0; cursor: not-allowed; opacity: 0.7; }
+  .btn-ghost { background: transparent; color: #666; border: 1px solid #ccc; padding: 9px 18px; }
+  .btn-ghost:hover { background: #f0f0e8; }
+
+  /* Participant Information panel inputs */
+  .pi-field {
+    width: 100%;
+    border: 1px solid var(--odc-border);
+    background: #fff;
+    padding: 7px 10px;
+    font-size: .87rem;
+    border-radius: 4px;
+    font-family: inherit;
+    color: var(--ink);
+    transition: border-color .12s;
+  }
+  .pi-field:focus { outline: none; border-color: var(--odc-green); box-shadow: 0 0 0 3px rgba(74, 122, 60, 0.12); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <img src="logo_300.png" alt="One Dream Community" style="height:42px;width:auto;display:block;">
+  <div>
+    <h1>One Dream Community</h1>
+    <small>Document Launcher · Onboarding Workflow</small>
+  </div>
+</div>
+
+<main>
+  <div class="page-head">
+    <h2>Participant <em>onboarding</em>.</h2>
+    <p>Fill in the participant's details once below — they will <strong>auto-populate every form</strong> you open. Then tick which documents to prepare and click <strong>Open Selected Documents</strong>.</p>
+  </div>
+
+  <!-- ★ Section 0: Participant Information (type once, populate everywhere) -->
+  <div class="section" id="participantInfoSection">
+    <div class="section-h">★ Participant Information <span style="color:#888; font-weight:400; font-size:.78rem; margin-left:8px; text-transform:none; letter-spacing:0;">— type once, populate everywhere</span></div>
+    <p class="section-sub">These values are saved to your browser and auto-fill matching fields in any opened form. Edit any field at any time — changes flow back automatically.</p>
+
+    <div style="background:#fafdf6; border:1px solid var(--odc-border); border-radius:8px; padding:14px 18px;">
+
+      <!-- Personal -->
+      <div style="font-size:.74rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--odc-green); font-weight:700; margin-bottom:8px;">Personal</div>
+      <div style="display:grid; grid-template-columns:2fr 1fr 1fr; gap:10px; margin-bottom:14px;">
+        <div>
+          <label style="font-size:.72rem; color:#666; display:block; margin-bottom:3px;">Full Name</label>
+          <input type="text" data-shared="p_name" placeholder="e.g. Mary Smith" class="pi-field">
+        </div>
+        <div>
+          <label style="font-size:.72rem; color:#666; display:block; margin-bottom:3px;">Date of Birth</label>
+          <input type="date" data-shared="p_dob" class="pi-field">
+        </div>
+        <div>
+          <label style="font-size:.72rem; color:#666; display:block; margin-bottom:3px;">Sex</label>
+          <select data-shared="p_sex" class="pi-field">
+            <option value="">—</option><option>Male</option><option>Female</option><option>Other</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:10px; margin-bottom:14px;">
+        <div>
+          <label style="font-size:.72rem; color:#666; display:block; margin-bottom:3px;">Preferred Name</label>
+          <input type="text" data-shared="p_prefName" class="pi-field">
+        </div>
+        <div>
+          <label style="font-size:.72rem; color:#666; display:block; margin-bottom:3px;">Aged Care ID</label>
+          <input type="text" data-shared="p_acId" placeholder="123456789" class="pi-field">
+        </div>
+        <div>
+          <label style="font-size:.72rem; color:#666; display:block; margin-bottom:3px;">Medicare No.</label>
+          <input type="text" data-shared="p_medicare" class="pi-field">
+        </div>
+        <div>
+          <label style="font-size:.72rem; color:#666; display:block; margin-bottom:3px;">Pension No.</label>
+          <input type="text" data-shared="p_pension" class="pi-field">
+        </div>
+      </div>
+
+      <!-- Contact -->
+      <div style="font-size:.74rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--odc-green); font-weight:700; margin-bottom:8px;">Contact</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:14px;">
+        <div>
+          <label style="font-size:.72rem; color:#666; display:block; margin-bottom:3px;">Mobile</label>
+          <input type="tel" data-shared="p_mobile" placeholder="0400 000 000" class="pi-field">
+        </div>
+        <div>
+          <label style="font-size:.72rem; color:#666; display:block; margin-bottom:3px;">Home Phone</label>
+          <input type="tel" data-shared="p_phone" placeholder="02 9000 0000" class="pi-field">
+        </div>
+        <div>
+          <label style="font-size:.72rem; color:#666; display:block; margin-bottom:3px;">Email</label>
+          <input type="email" data-shared="p_email" placeholder="email@example.com" class="pi-field">
+        </div>
+      </div>
+
+      <!-- Address -->
+      <div style="font-size:.74rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--odc-green); font-weight:700; margin-bottom:8px;">Address</div>
+      <div style="display:grid; grid-template-columns:2fr 1fr 1fr; gap:10px; margin-bottom:14px;">
+        <div>
+          <label style="font-size:.72rem; color:#666; display:block; margin-bottom:3px;">Street Address</label>
+          <input type="text" data-shared="p_street" placeholder="Unit/Number Street Name" class="pi-field">
+        </div>
+        <div>
+          <label style="font-size:.72rem; color:#666; display:block; margin-bottom:3px;">Suburb &amp; State</label>
+          <input type="text" data-shared="p_suburb" placeholder="Burwood NSW" class="pi-field">
+        </div>
+        <div>
+          <label style="font-size:.72rem; color:#666; display:block; margin-bottom:3px;">Postcode</label>
+          <input type="text" data-shared="p_postcode" placeholder="2134" class="pi-field">
+        </div>
+      </div>
+
+      <!-- Emergency / NOK -->
+      <div style="font-size:.74rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--odc-green); font-weight:700; margin-bottom:8px;">Next of Kin / Emergency</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:14px;">
+        <div>
+          <label style="font-size:.72rem; color:#666; display:block; margin-bottom:3px;">NOK Name</label>
+          <input type="text" data-shared="p_nokName" class="pi-field">
+        </div>
+        <div>
+          <label style="font-size:.72rem; color:#666; display:block; margin-bottom:3px;">NOK Phone</label>
+          <input type="tel" data-shared="p_nokPhone" class="pi-field">
+        </div>
+        <div>
+          <label style="font-size:.72rem; color:#666; display:block; margin-bottom:3px;">Relationship</label>
+          <input type="text" data-shared="p_nokRel" placeholder="e.g. Daughter" class="pi-field">
+        </div>
+      </div>
+
+      <!-- Service & Staff -->
+      <div style="font-size:.74rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--odc-green); font-weight:700; margin-bottom:8px;">Service &amp; Staff</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:10px; margin-bottom:14px;">
+        <div>
+          <label style="font-size:.72rem; color:#666; display:block; margin-bottom:3px;">Document Date</label>
+          <input type="date" data-shared="p_docDate" class="pi-field">
+        </div>
+        <div>
+          <label style="font-size:.72rem; color:#666; display:block; margin-bottom:3px;">Service Start Date</label>
+          <input type="date" data-shared="p_startDate" class="pi-field">
+        </div>
+        <div>
+          <label style="font-size:.72rem; color:#666; display:block; margin-bottom:3px;">Coordinator / Assessor</label>
+          <input type="text" data-shared="p_officer" placeholder="Staff name" class="pi-field">
+        </div>
+        <div>
+          <label style="font-size:.72rem; color:#666; display:block; margin-bottom:3px;">Legal Representative</label>
+          <input type="text" data-shared="p_legal" class="pi-field">
+        </div>
+      </div>
+
+      <!-- GP -->
+      <div style="font-size:.74rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--odc-green); font-weight:700; margin-bottom:8px;">GP &amp; Medical Centre</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:6px;">
+        <div>
+          <label style="font-size:.72rem; color:#666; display:block; margin-bottom:3px;">GP Name</label>
+          <input type="text" data-shared="p_gpName" class="pi-field">
+        </div>
+        <div>
+          <label style="font-size:.72rem; color:#666; display:block; margin-bottom:3px;">Medical Centre</label>
+          <input type="text" data-shared="p_medCentre" class="pi-field">
+        </div>
+        <div>
+          <label style="font-size:.72rem; color:#666; display:block; margin-bottom:3px;">Medical Centre Phone</label>
+          <input type="tel" data-shared="p_medCentrePhone" class="pi-field">
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:14px; padding-top:12px; border-top:1px dashed var(--odc-border);">
+        <div style="font-size:.78rem; color:#666;">
+          <span id="piSavedFlash" style="display:none; color:var(--odc-green); font-weight:600;">✓ Saved</span>
+          <span id="piIdleHint">Auto-saved as you type · Stored in this browser only</span>
+        </div>
+        <button type="button" onclick="resetParticipantInfo()" style="background:transparent; color:#a64b2a; border:1px solid #d0a090; padding:6px 12px; border-radius:6px; font-size:.78rem; cursor:pointer;">🗑 Clear All Participant Info</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 1: Standalone / Pre-onboarding Documents -->
+  <div class="section">
+    <div class="section-h">① Pre-Onboarding Forms</div>
+    <p class="section-sub">Tick the forms that need to be completed first. They will open in sequence so each can be filled in turn.</p>
+    <div class="doc-grid">
+      <label class="doc-choice" data-type="standalone" data-order="1" data-url="Client Info Form/client_info_form.html">
+        <input type="checkbox" class="dc-input">
+        <div class="dc-body">
+          <div class="dc-title">📄 Client Information Form</div>
+          <div class="dc-meta">Initial visit intake form · v0.1 May 2024</div>
+        </div>
+      </label>
+      <label class="doc-choice" data-type="standalone" data-order="2" data-url="Homesafety/index.html">
+        <input type="checkbox" class="dc-input">
+        <div class="dc-body">
+          <div class="dc-title">🏠 Home Safety Checklist</div>
+          <div class="dc-meta">Risk and hazards walkthrough · v1.0 2026</div>
+        </div>
+      </label>
+      <label class="doc-choice" data-type="standalone" data-order="3" data-url="Self-Managed/06_eligibility_checklist.html" data-sm-only="true">
+        <input type="checkbox" class="dc-input">
+        <div class="dc-body">
+          <div class="dc-title">✅ Self-Managed Eligibility Checklist <span class="dc-tag warn">SM only</span></div>
+          <div class="dc-meta">Document 6 · Capacity &amp; risk assessment (auto-enabled when Self-Managed contract is chosen)</div>
+        </div>
+      </label>
+    </div>
+  </div>
+
+  <!-- Section 2: Contract Type -->
+  <div class="section">
+    <div class="section-h">② Service Agreement Type</div>
+    <p class="section-sub">Pick which contract applies to this client. This unlocks the related onboarding documents below.</p>
+
+    <div class="contract-grid">
+      <label class="contract-opt" data-contract="sydney">
+        <input type="radio" name="contractType" value="sydney">
+        <div class="ci-icon">🏙️</div>
+        <div class="ci-name">Sydney</div>
+        <div class="ci-desc">NSW · 38 pages</div>
+      </label>
+      <label class="contract-opt" data-contract="other">
+        <input type="radio" name="contractType" value="other">
+        <div class="ci-icon">🌏</div>
+        <div class="ci-name">Other States</div>
+        <div class="ci-desc">VIC · QLD · etc · 38 pages</div>
+      </label>
+      <label class="contract-opt" data-contract="selfmanaged">
+        <input type="radio" name="contractType" value="selfmanaged">
+        <div class="ci-icon">🤝</div>
+        <div class="ci-name">Self-Managed</div>
+        <div class="ci-desc">Self-managed · 43 pages</div>
+      </label>
+      <label class="contract-none">
+        <input type="radio" name="contractType" value="none">
+        ✕ No contract needed for this client
+      </label>
+    </div>
+  </div>
+
+  <!-- Section 3: Bundled Onboarding Documents (depends on contract type) -->
+  <div class="section" id="bundledSection">
+    <div class="section-h">③ Onboarding Documents (with contract)</div>
+    <p class="section-sub">These come bundled with the chosen contract type. Tick the ones you want included — they all open in one tab.</p>
+    <div class="doc-grid">
+      <label class="doc-choice disabled" data-type="bundled" data-key="intake">
+        <input type="checkbox" class="dc-input">
+        <div class="dc-body">
+          <div class="dc-title">📋 Participant Intake Checklist</div>
+          <div class="dc-meta">Document 1 · Eligibility &amp; Rights overview</div>
+        </div>
+      </label>
+      <label class="doc-choice disabled" data-type="bundled" data-key="consent">
+        <input type="checkbox" class="dc-input">
+        <div class="dc-body">
+          <div class="dc-title">📝 Participant Consent Form</div>
+          <div class="dc-meta">Document 2 · Privacy &amp; information sharing</div>
+        </div>
+      </label>
+      <label class="doc-choice disabled" data-type="bundled" data-key="emergency">
+        <input type="checkbox" class="dc-input">
+        <div class="dc-body">
+          <div class="dc-title">🚨 Emergency &amp; Disaster Management Plan</div>
+          <div class="dc-meta">Document 3 · Non-Response &amp; Key Safe</div>
+        </div>
+      </label>
+      <label class="doc-choice disabled" data-type="bundled" data-key="sa">
+        <input type="checkbox" class="dc-input">
+        <div class="dc-body">
+          <div class="dc-title">📑 Service Agreement</div>
+          <div class="dc-meta">Document 4 · Full contract <span id="contractTag" class="dc-tag" style="display:none;"></span></div>
+        </div>
+      </label>
+    </div>
+
+  </div>
+
+  <!-- Action bar -->
+  <div class="action-bar">
+    <div class="selected-summary"><strong id="countTotal">0</strong> document<span id="countS">s</span> selected</div>
+    <div style="display:flex; gap:8px;">
+      <button class="btn btn-ghost" type="button" onclick="resetAll()">Clear All</button>
+      <button class="btn btn-odc" type="button" id="openBtn" disabled onclick="openSelected()">Open Selected Documents →</button>
+    </div>
+  </div>
+</main>
+
+<script>
+const CONTRACT_FOLDERS = {
+  sydney: { folder: 'Sydney', label: 'Sydney' },
+  other: { folder: 'Other States', label: 'Other States' },
+  selfmanaged: { folder: 'Self-Managed', label: 'Self-Managed' },
+};
+
+function selectedContract() {
+  const r = document.querySelector('input[name="contractType"]:checked');
+  return r ? r.value : null;
+}
+
+function updateBundledAvailability() {
+  const contract = selectedContract();
+  const valid = contract && contract !== 'none';
+
+  // Bundled doc choices (Intake/Consent/Emergency/SA) enabled only when contract chosen
+  document.querySelectorAll('#bundledSection .doc-choice').forEach(el => {
+    if (el.dataset.type !== 'bundled') return;
+    el.classList.toggle('disabled', !valid);
+    const cb = el.querySelector('.dc-input');
+    if (!valid) cb.checked = false;
+  });
+
+  // SM-only standalone doc (Eligibility Checklist) — enabled only when SM chosen
+  document.querySelectorAll('.doc-choice[data-sm-only="true"]').forEach(el => {
+    const isSM = (contract === 'selfmanaged');
+    el.classList.toggle('disabled', !isSM);
+    const cb = el.querySelector('.dc-input');
+    if (!isSM) cb.checked = false;
+  });
+
+  // Contract tag in the SA card
+  const tag = document.getElementById('contractTag');
+  if (valid) {
+    tag.textContent = CONTRACT_FOLDERS[contract].label;
+    tag.style.display = 'inline-block';
+  } else {
+    tag.style.display = 'none';
+  }
+  refreshChoiceVisuals();
+  updateCount();
+}
+
+function refreshChoiceVisuals() {
+  document.querySelectorAll('.doc-choice').forEach(el => {
+    const cb = el.querySelector('.dc-input');
+    if (!cb) return;
+    el.classList.toggle('checked', cb.checked && !el.classList.contains('disabled'));
+  });
+  document.querySelectorAll('.contract-opt, .contract-none').forEach(el => {
+    const r = el.querySelector('input[type="radio"]');
+    if (!r) return;
+    el.classList.toggle('checked', r.checked);
+  });
+}
+
+function updateCount() {
+  // Standalone selections + bundled selections (if any contract, count as one combined opening)
+  let standaloneCount = 0;
+  document.querySelectorAll('.doc-choice[data-type="standalone"] .dc-input:checked').forEach(() => standaloneCount++);
+
+  // Bundled: all checked bundled items go to ONE tab (the contract's index.html)
+  const contract = selectedContract();
+  const valid = contract && contract !== 'none';
+  let bundledChecked = 0;
+  if (valid) {
+    document.querySelectorAll('.doc-choice[data-type="bundled"] .dc-input:checked').forEach(() => bundledChecked++);
+  }
+
+  const total = standaloneCount + (bundledChecked > 0 ? 1 : 0);
+  document.getElementById('countTotal').textContent = total;
+  document.getElementById('countS').textContent = total === 1 ? '' : 's';
+  document.getElementById('openBtn').disabled = total === 0;
+}
+
+function openSelected() {
+  // Build ordered list of URLs to open in sequence
+  const queue = [];
+
+  // 1) Standalone forms first, in their data-order sequence
+  const standaloneItems = Array.from(document.querySelectorAll('.doc-choice[data-type="standalone"]'))
+    .filter(el => {
+      const cb = el.querySelector('.dc-input');
+      return cb && cb.checked && !el.classList.contains('disabled') && el.dataset.url;
+    })
+    .sort((a, b) => (parseInt(a.dataset.order || '99', 10) - parseInt(b.dataset.order || '99', 10)));
+  standaloneItems.forEach(el => queue.push({ url: el.dataset.url, label: el.querySelector('.dc-title').textContent.trim() }));
+
+  // 2) Bundled documents (one combined tab with URL params)
+  const contract = selectedContract();
+  if (contract && contract !== 'none') {
+    const folder = CONTRACT_FOLDERS[contract].folder;
+    const checkedKeys = [];
+    document.querySelectorAll('.doc-choice[data-type="bundled"]').forEach(el => {
+      const cb = el.querySelector('.dc-input');
+      if (cb && cb.checked && el.dataset.key) checkedKeys.push(el.dataset.key);
+    });
+    if (checkedKeys.length > 0) {
+      const url = `${folder}/index.html?docs=${checkedKeys.join(',')}`;
+      queue.push({ url, label: `Onboarding · ${CONTRACT_FOLDERS[contract].label}` });
+    }
+  }
+
+  if (queue.length === 0) {
+    alert('Please select at least one document to open.');
+    return;
+  }
+
+  // Convert each relative URL to an ABSOLUTE URL based on this launcher's location.
+  // Forms live in subfolders, so a relative path like "Homesafety/index.html" in a
+  // form would resolve to "<form_folder>/Homesafety/..." (wrong). Absolute URLs
+  // work from any folder.
+  const baseDir = location.protocol + '//' + location.host
+                  + location.pathname.substring(0, location.pathname.lastIndexOf('/') + 1);
+  function toAbsolute(relUrl) {
+    // Already absolute? leave alone
+    if (/^[a-z]+:\/\//i.test(relUrl) || relUrl.startsWith('/')) return relUrl;
+    return baseDir + relUrl;
+  }
+  queue.forEach(item => { item.absUrl = toAbsolute(item.url); });
+
+  // Build the workflow queue parameter — pipe-separated, each URL encoded once.
+  // Pass it as ?wfq=<urls>&wfp=<position> so each form knows where it sits
+  // in the sequence and can offer a "Next →" button.
+  const wfq = queue.map(item => encodeURIComponent(item.absUrl)).join('|');
+
+  // Open each URL in a new tab, sequentially with a small delay so popup
+  // blockers don't intervene and tabs appear in the chosen order.
+  queue.forEach((item, idx) => {
+    setTimeout(() => {
+      const sep = item.absUrl.includes('?') ? '&' : '?';
+      const finalUrl = item.absUrl + sep + 'wfq=' + encodeURIComponent(wfq) + '&wfp=' + idx;
+      const win = window.open(finalUrl, '_blank');
+      if (!win && idx === 0) {
+        alert(
+          'Your browser blocked opening multiple tabs.\n\n' +
+          'Please allow popups for this page, then click "Open Selected Documents" again.'
+        );
+      }
+    }, idx * 220);
+  });
+}
+
+function resetAll() {
+  document.querySelectorAll('input[type="checkbox"], input[type="radio"]').forEach(i => { i.checked = false; });
+  updateBundledAvailability();
+}
+
+// Wire up
+document.querySelectorAll('input[name="contractType"]').forEach(r => {
+  r.addEventListener('change', updateBundledAvailability);
+});
+document.querySelectorAll('.dc-input').forEach(cb => {
+  cb.addEventListener('change', () => { refreshChoiceVisuals(); updateCount(); });
+});
+// Initial
+updateBundledAvailability();
+
+// ── Participant Info: Auto-save / restore via localStorage ──
+const PI_PREFIX = 'odc_shared_';
+const piFields = document.querySelectorAll('[data-shared]');
+let _piSaveTimer = null;
+function flashSaved() {
+  const flash = document.getElementById('piSavedFlash');
+  const hint  = document.getElementById('piIdleHint');
+  if (!flash || !hint) return;
+  flash.style.display = 'inline';
+  hint.style.display  = 'none';
+  clearTimeout(_piSaveTimer);
+  _piSaveTimer = setTimeout(() => {
+    flash.style.display = 'none';
+    hint.style.display  = 'inline';
+  }, 1200);
+}
+piFields.forEach(el => {
+  const key = PI_PREFIX + el.dataset.shared;
+  // Restore
+  try {
+    const stored = localStorage.getItem(key);
+    if (stored !== null) {
+      if (el.type === 'checkbox' || el.type === 'radio') el.checked = (stored === '1');
+      else el.value = stored;
+    }
+  } catch(e) {}
+  // Save on change
+  const evt = (el.type === 'checkbox' || el.type === 'radio') ? 'change' : 'input';
+  el.addEventListener(evt, () => {
+    try {
+      if (el.type === 'checkbox' || el.type === 'radio') localStorage.setItem(key, el.checked ? '1' : '0');
+      else localStorage.setItem(key, el.value);
+      flashSaved();
+    } catch(e) {}
+  });
+});
+
+window.resetParticipantInfo = function(){
+  if (!confirm('Clear all participant information? This cannot be undone.')) return;
+  piFields.forEach(el => {
+    const key = PI_PREFIX + el.dataset.shared;
+    try { localStorage.removeItem(key); } catch(e) {}
+    if (el.type === 'checkbox' || el.type === 'radio') el.checked = false;
+    else el.value = '';
+  });
+};
+</script>
+
+</body>
+</html>
