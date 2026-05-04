@@ -1,0 +1,1650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>One Dream Community – All Onboarding Forms</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+<style>
+  :root {
+    --odc-green: #4a7a3c;
+    --odc-deep: #2f4a2a;
+    --odc-light-green: #f4faf3;
+    --odc-soft: #e6efdb;
+    --odc-border: #d9dfcc;
+    --ink: #1a2017;
+    --ink-soft: #444c40;
+  }
+  * { box-sizing: border-box; }
+  body { background:#f4f6ee; color:var(--ink); font-family:"Helvetica Neue","Segoe UI",Arial,sans-serif; line-height:1.55; padding:0; margin:0; }
+
+  /* Header */
+  .topbar { background:#fff; border-bottom:1px solid var(--odc-border); padding:14px 28px; display:flex; align-items:center; gap:14px; position:sticky; top:0; z-index:100; }
+  .topbar img { height:42px; width:auto; }
+  .topbar h1 { font-size:1.05rem; margin:0; color:var(--odc-green); font-weight:700; }
+  .topbar small { color:#888; font-size:.78rem; letter-spacing:0.05em; text-transform:uppercase; }
+
+  /* Nav tabs */
+  .nav-bar { background:#fff; border-bottom:1px solid var(--odc-border); padding:8px 28px; display:flex; gap:6px; flex-wrap:wrap; position:sticky; top:71px; z-index:99; box-shadow:0 2px 4px rgba(0,0,0,0.03); }
+  .nav-btn { background:#fafdf6; border:1px solid var(--odc-border); color:var(--ink-soft); padding:8px 14px; border-radius:6px; font-size:.85rem; cursor:pointer; transition:all .14s; font-weight:500; }
+  .nav-btn:hover { border-color:var(--odc-green); color:var(--odc-green); }
+  .nav-btn.active { background:var(--odc-green); color:#fff; border-color:var(--odc-green); font-weight:600; }
+
+  main { max-width:980px; margin:0 auto; padding:24px 24px 80px 24px; }
+
+  /* Participant Info panel */
+  .pi-section { background:#fff; border:1px solid var(--odc-border); border-radius:10px; padding:18px 22px; margin-bottom:24px; box-shadow:0 1px 2px rgba(0,0,0,0.03); }
+  .pi-section-h { font-size:.82rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:var(--odc-green); margin:0 0 6px 0; }
+  .pi-section-sub { font-size:.85rem; color:#666; margin:0 0 14px 0; }
+  .pi-cat { font-size:.74rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--odc-green); font-weight:700; margin:14px 0 8px 0; }
+  .pi-cat:first-of-type { margin-top:0; }
+  .pi-grid { display:grid; gap:10px; margin-bottom:8px; }
+  .pi-grid.g3 { grid-template-columns:2fr 1fr 1fr; }
+  .pi-grid.g4 { grid-template-columns:1fr 1fr 1fr 1fr; }
+  .pi-grid.g3eq { grid-template-columns:1fr 1fr 1fr; }
+  .pi-grid label { font-size:.72rem; color:#666; display:block; margin-bottom:3px; }
+  .pi-field { width:100%; border:1px solid var(--odc-border); background:#fff; padding:7px 10px; font-size:.87rem; border-radius:4px; font-family:inherit; color:var(--ink); transition:border-color .12s; }
+  .pi-field:focus { outline:none; border-color:var(--odc-green); box-shadow:0 0 0 3px rgba(74,122,60,0.12); }
+  .pi-saved-flash { display:none; color:var(--odc-green); font-weight:600; font-size:.78rem; }
+  .pi-saved-flash.show { display:inline; }
+
+  /* Form sections */
+  .form-section { display:none; background:#fff; border:1px solid var(--odc-border); border-radius:10px; box-shadow:0 1px 2px rgba(0,0,0,0.03); }
+  .form-section.active { display:block; }
+  .form-body { padding:24px 32px 28px 32px; }
+
+  /* Doc cover */
+  .doc-cover { text-align:center; padding:18px 0 14px 0; margin:0 0 18px 0; border-bottom:2px solid var(--odc-green); }
+  .doc-cover img { height:60px; width:auto; display:block; margin:0 auto; }
+  .doc-cover-title { font-size:1.35rem; font-weight:800; color:#122; margin-top:10px; letter-spacing:0.4px; }
+  .doc-cover-subtitle { font-size:.92rem; color:#555; margin-top:4px; font-style:italic; }
+  .doc-cover-version { font-size:.78rem; color:#777; margin-top:6px; letter-spacing:0.6px; text-transform:uppercase; }
+
+  /* Section heading */
+  .doc-section-h { font-size:1rem; font-weight:700; color:var(--odc-green); margin:18px 0 8px 0; padding-bottom:4px; border-bottom:1.2pt solid var(--odc-green); letter-spacing:0.2px; }
+
+  /* Tables */
+  .data-table { width:100%; border-collapse:collapse; margin-bottom:14px; font-size:.88rem; }
+  .data-table td, .data-table th { border:1px solid #d6d6d0; padding:6px 9px; vertical-align:top; }
+  .data-table .lbl { background:#f6f6f1; font-weight:600; color:#333; width:18%; white-space:nowrap; }
+  .data-table input[type="text"], .data-table input[type="date"], .data-table input[type="email"], .data-table input[type="tel"], .data-table input[type="number"] { width:100%; border:none; background:transparent; outline:none; font-size:.88rem; padding:2px 0; border-bottom:1px dashed #aaa; }
+  .data-table textarea { width:100%; border:1px solid #d6d6d0; background:#fafdf6; outline:none; font-size:.88rem; padding:6px 8px; min-height:60px; resize:vertical; font-family:inherit; }
+  .data-table thead th { background:var(--odc-green); color:#fff; font-weight:700; font-size:.82rem; }
+  .data-table tbody tr:nth-child(even) td:not(.lbl) { background:#fafaf6; }
+
+  /* Checkbox / radio */
+  .opts { display:flex; gap:18px; flex-wrap:wrap; align-items:center; padding:2px 0; }
+  .opts label { display:inline-flex; align-items:center; gap:8px; cursor:pointer; user-select:none; font-size:.88rem; }
+  .opts input[type="checkbox"], .opts input[type="radio"] { width:16px; height:16px; accent-color:var(--odc-green); margin:0; flex-shrink:0; }
+  .yn-inline { display:inline-flex; gap:14px; align-items:center; }
+  .yn-inline label { display:inline-flex; gap:5px; align-items:center; cursor:pointer; font-size:.86rem; }
+  .yn-inline input { accent-color:var(--odc-green); }
+
+  /* Checklist table (Home Safety) */
+  .check-table { width:100%; border-collapse:collapse; margin-bottom:18px; font-size:.85rem; table-layout:fixed; }
+  .check-table th, .check-table td { border:1px solid #d6d6d0; padding:6px 8px; vertical-align:top; word-wrap:break-word; }
+  .check-table thead th { background:var(--odc-green); color:#fff; font-weight:700; font-size:.8rem; }
+  .check-table tbody tr:nth-child(even) td { background:#fafaf6; }
+  .check-table .yn { text-align:center; width:9%; }
+  .check-table input[type="text"] { width:100%; border:none; border-bottom:1px dashed #aaa; background:transparent; font-size:.85rem; padding:1px 0; outline:none; }
+  .check-table input[type="checkbox"], .check-table input[type="radio"] { width:16px; height:16px; accent-color:var(--odc-green); cursor:pointer; }
+
+  /* Sub-headings */
+  .sub-h { font-size:.88rem; font-weight:700; color:#1d4a23; margin:14px 0 6px 0; }
+
+  /* Cap table (Eligibility) */
+  .cap-table { width:100%; border-collapse:collapse; font-size:.83rem; margin-bottom:14px; table-layout:fixed; }
+  .cap-table th, .cap-table td { border:1px solid #d6d6d0; padding:6px 8px; vertical-align:top; word-wrap:break-word; }
+  .cap-table thead th { background:var(--odc-green); color:#fff; font-weight:700; }
+  .cap-table .area { background:#eaf2e6; font-weight:700; color:#1d4a23; width:18%; }
+  .cap-table .question { width:50%; }
+  .cap-table .response { width:32%; }
+  .cap-table input[type="text"] { width:100%; border:none; border-bottom:1px dashed #aaa; background:transparent; outline:none; font-size:.83rem; padding:1px 0; margin-top:4px; }
+  .cap-table tbody tr:nth-child(even) td:not(.area) { background:#fafaf6; }
+  .yn-group { display:inline-flex; gap:14px; align-items:center; }
+  .yn-group label { display:inline-flex; gap:5px; align-items:center; cursor:pointer; font-size:.85rem; }
+  .yn-group input[type="radio"] { accent-color:var(--odc-green); }
+
+  /* Sign block */
+  .sign-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:18px; margin:14px 0 18px 0; }
+  .sign-grid .field label { display:block; font-size:.72rem; text-transform:uppercase; letter-spacing:0.08em; color:#888; margin-bottom:5px; font-weight:600; }
+  .sign-grid .field input { width:100%; border:none; border-bottom:1.5px solid #1a4f8a; padding:6px 2px; font-size:.95rem; background:transparent; outline:none; }
+
+  /* Signature slot (clickable) */
+  .sig-slot {
+    position:relative;
+    display:inline-flex; align-items:center; justify-content:center;
+    width:100%; min-height:48px; max-height:48px;
+    border:1px dashed #aaa; border-radius:4px;
+    background:#fafdf6; cursor:pointer;
+    transition:background .15s, border-color .15s;
+    overflow:visible; padding:2px;
+  }
+  .sig-slot:hover { background:#eef5e3; border-color:var(--odc-green); }
+  .sig-slot .sig-hint { color:#888; font-size:.78rem; font-style:italic; }
+  .sig-slot.applied { border-style:solid; border-color:var(--odc-green); background:#fff; }
+  .sig-slot img { max-height:44px; max-width:100%; object-fit:contain; }
+  .sig-slot .sig-clear-x {
+    display:none; position:absolute; top:-8px; right:-8px;
+    width:22px; height:22px; border-radius:50%;
+    background:#a64b2a; color:#fff; border:2px solid #fff;
+    font-size:14px; line-height:18px; text-align:center;
+    cursor:pointer; font-weight:bold;
+    box-shadow:0 2px 6px rgba(0,0,0,0.2);
+    z-index:1;
+  }
+  .sig-slot.applied:hover .sig-clear-x { display:block; }
+  .sig-slot.applied:hover { background:#fff8f3; }
+
+  /* Signature capture modal */
+  .sig-modal-backdrop { display:none; position:fixed; inset:0; background:rgba(20,30,20,0.6); z-index:10001; align-items:center; justify-content:center; padding:20px; }
+  .sig-modal-backdrop.show { display:flex; }
+  .sig-modal-card { background:#fff; border-radius:10px; max-width:560px; width:100%; padding:22px 26px; box-shadow:0 18px 50px rgba(0,0,0,0.25); }
+  .sig-modal-card h3 { margin:0 0 4px 0; font-size:1.1rem; color:var(--odc-green); display:flex; justify-content:space-between; align-items:center; }
+  .sig-modal-card h3 .sig-close { background:none; border:none; font-size:1.6rem; cursor:pointer; color:#888; padding:0 4px; line-height:1; }
+  .sig-modal-card .sig-sub { color:#666; font-size:.85rem; margin:0 0 12px 0; }
+  .sig-canvas-wrap { border:1.5px solid #d6d6d0; border-radius:6px; background:#fff; position:relative; }
+  .sig-canvas-wrap canvas { display:block; width:100%; height:200px; touch-action:none; cursor:crosshair; border-radius:6px; }
+  .sig-modal-actions { display:flex; justify-content:space-between; gap:8px; margin-top:14px; padding-top:12px; border-top:1px solid #eee; }
+  .sig-modal-actions .left, .sig-modal-actions .right { display:flex; gap:8px; }
+  .declaration { background:var(--odc-light-green); border-left:3px solid var(--odc-green); padding:10px 14px; margin:10px 0 8px 0; font-size:.87rem; color:#2c3a2c; font-style:italic; }
+
+  /* Alerts box (Emergency) */
+  .alerts-box { border:1px solid #d6d6d0; border-radius:6px; padding:0; overflow:hidden; margin-top:14px; }
+  .alerts-box .alerts-title { background:#fff3e0; color:#a64b2a; padding:8px 12px; font-weight:700; font-size:.9rem; }
+  .alerts-box .alerts-body { padding:10px 14px; font-size:.85rem; line-height:1.5; }
+  .alerts-box ol { margin:0; padding-left:20px; }
+  .alerts-box li { margin-bottom:4px; }
+
+  /* Section actions */
+  .section-actions { padding:14px 32px; background:#fff; border-bottom:1px solid var(--odc-border); display:flex; justify-content:space-between; align-items:center; gap:8px; border-radius:10px 10px 0 0; }
+  .section-actions .actions-meta { font-size:.82rem; color:#666; }
+  .btn-odc { background:var(--odc-green); color:#fff; border:1px solid var(--odc-green); padding:8px 16px; border-radius:6px; font-size:.85rem; font-weight:600; cursor:pointer; }
+  .btn-odc:hover { background:#3a6230; }
+  .btn-odc-outline { background:#fff; color:var(--odc-green); border:1px solid var(--odc-green); padding:8px 16px; border-radius:6px; font-size:.85rem; font-weight:600; cursor:pointer; }
+  .btn-odc-outline:hover { background:var(--odc-light-green); }
+
+  /* PRINT — only the active form section is printed */
+  @media print {
+    @page { size:A4; margin:14mm 12mm; }
+    * { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
+    .topbar, .nav-bar, .pi-section, .section-actions, .no-print { display:none !important; }
+    body { background:#fff; font-size:10pt; line-height:1.45; color:#000; }
+    main { padding:0; max-width:100%; }
+    .form-section { display:none !important; box-shadow:none !important; border:none !important; border-radius:0 !important; margin:0; padding:0; }
+    .form-section.active { display:block !important; }
+    .form-body { padding:0 !important; }
+    .doc-section-h { page-break-after:avoid; break-after:avoid; }
+    .doc-section-h + * { page-break-before:avoid; break-before:avoid; }
+    table { page-break-inside:auto; }
+    tr { page-break-inside:avoid; break-inside:avoid; }
+    thead { display:table-header-group; }
+    input[type="text"], input[type="date"], input[type="email"], input[type="tel"], input[type="number"], textarea, select {
+      border:none !important; border-bottom:1px solid #1a4f8a !important; background:transparent !important; color:#000 !important; padding:1px 2px !important;
+    }
+    input::placeholder, textarea::placeholder { color:transparent !important; }
+    /* Signature slot in print */
+    .sig-slot { border:none !important; border-bottom:1px solid #1a4f8a !important; border-radius:0 !important; background:transparent !important; min-height:32pt !important; max-height:36pt !important; padding:0 !important; }
+    .sig-slot .sig-hint { display:none !important; }
+    .sig-slot img { max-height:34pt !important; max-width:140pt !important; }
+    .doc-cover { padding:12pt 0 10pt 0 !important; margin-bottom:14pt !important; border-bottom:2pt solid var(--odc-green) !important; }
+    .doc-cover img { height:42pt !important; }
+    .doc-cover-title { font-size:16pt !important; margin-top:8pt !important; }
+    .doc-cover-version { font-size:8pt !important; color:#666 !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <img src="logo_300.png" alt="One Dream Community" onerror="this.style.display='none'">
+  <div>
+    <h1>One Dream Community</h1>
+    <small>All Onboarding Forms · Single-page version</small>
+  </div>
+</div>
+
+<div class="nav-bar no-print" id="navBar">
+  <div id="formTabs" style="display:flex; gap:6px; flex-wrap:wrap; flex:1;"></div>
+  <div style="display:flex; gap:6px;">
+    <button class="nav-btn" style="background:#fff; color:#4a7a3c; border-color:#4a7a3c;" onclick="togglePicker()">✓ Pick Forms</button>
+    <button class="nav-btn" style="background:#fff; color:#4a7a3c; border-color:#4a7a3c;" onclick="openSaveModal()">💾 Save Progress</button>
+    <button class="nav-btn" style="background:#2f4a2a; color:#fff; border-color:#2f4a2a;" onclick="openPrintAllModal()">🖨️ Print Multiple…</button>
+    <button class="nav-btn" style="background:#fff; color:#a64b1a; border-color:#d99656;" onclick="clearAllAndReload(true)" title="Wipe all data and start fresh for a new participant">🗑 Clear</button>
+  </div>
+</div>
+
+<!-- ═══ Print Multiple Modal ═══ -->
+<div id="printAllBackdrop" class="no-print" style="display:none; position:fixed; inset:0; background:rgba(20,30,20,0.55); z-index:10000; align-items:center; justify-content:center; padding:20px;" onclick="if(event.target===this)closePrintAllModal()">
+  <div style="background:#fff; border-radius:10px; max-width:480px; width:100%; padding:24px 26px; box-shadow:0 18px 50px rgba(0,0,0,0.25);">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h3 style="margin:0; font-size:1.15rem; color:var(--odc-green); font-weight:700;">🖨️ Print Multiple Forms</h3>
+      <button onclick="closePrintAllModal()" style="background:none; border:none; font-size:1.6rem; cursor:pointer; color:#888; padding:0 4px;">&times;</button>
+    </div>
+    <p style="color:#666; font-size:.87rem; margin:6px 0 14px 0;">Tick which forms to include. They will print together (one form per page).</p>
+    <div id="printAllList" style="display:flex; flex-direction:column; gap:6px; margin-bottom:12px;"></div>
+    <div style="display:flex; gap:10px; align-items:center; margin-bottom:14px; font-size:.82rem;">
+      <button type="button" onclick="document.querySelectorAll('.pa-pick').forEach(c=>c.checked=true)" style="background:none; border:none; color:var(--odc-green); cursor:pointer; padding:0; font-weight:600; text-decoration:underline; font-size:.82rem;">Select All</button>
+      <span style="color:#bbb;">·</span>
+      <button type="button" onclick="document.querySelectorAll('.pa-pick').forEach(c=>c.checked=false)" style="background:none; border:none; color:var(--odc-green); cursor:pointer; padding:0; font-weight:600; text-decoration:underline; font-size:.82rem;">Clear All</button>
+    </div>
+    <div style="display:flex; justify-content:flex-end; gap:8px; padding-top:12px; border-top:1px solid #eee;">
+      <button class="btn-odc-outline" onclick="closePrintAllModal()">Cancel</button>
+      <button class="btn-odc" onclick="printSelectedForms()">🖨️ Print Selected</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Signature Capture Modal ═══ -->
+<div id="sigModalBackdrop" class="sig-modal-backdrop no-print" onclick="if(event.target===this)closeSigModal()">
+  <div class="sig-modal-card">
+    <h3>
+      <span id="sigModalTitle">✍️ Sign here</span>
+      <button class="sig-close" type="button" onclick="closeSigModal()">&times;</button>
+    </h3>
+    <p class="sig-sub">Use your mouse, finger, or stylus to draw your signature in the box. Click <strong>Apply</strong> when done.</p>
+    <div class="sig-canvas-wrap"><canvas id="sigCanvas"></canvas></div>
+    <div class="sig-modal-actions">
+      <div class="left">
+        <button class="btn-odc-outline" type="button" onclick="clearSig()">↺ Clear Drawing</button>
+        <button id="sigRemoveBtn" type="button" onclick="removeSigFromSlot()" style="background:#fff; color:#a64b2a; border:1px solid #d0a090; padding:8px 16px; border-radius:6px; font-size:.85rem; font-weight:600; cursor:pointer; display:none;">🗑 Remove This Signature</button>
+      </div>
+      <div class="right">
+        <button class="btn-odc-outline" type="button" onclick="closeSigModal()">Cancel</button>
+        <button class="btn-odc-outline" type="button" onclick="applySigToAll()" style="color:#1d4a23; border-color:#1d4a23;">✍️ Apply to All Slots</button>
+        <button class="btn-odc" type="button" onclick="applySig()">✓ Apply to This One</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Save/Resume Progress Modal ═══ -->
+<div id="saveBackdrop" class="no-print" style="display:none; position:fixed; inset:0; background:rgba(20,30,20,0.55); z-index:10000; align-items:center; justify-content:center; padding:20px;" onclick="if(event.target===this)closeSaveModal()">
+  <div style="background:#fff; border-radius:10px; max-width:560px; width:100%; padding:24px 26px; box-shadow:0 18px 50px rgba(0,0,0,0.25);">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h3 style="margin:0; font-size:1.15rem; color:var(--odc-green); font-weight:700;">💾 Save Your Progress</h3>
+      <button onclick="closeSaveModal()" style="background:none; border:none; font-size:1.6rem; cursor:pointer; color:#888; padding:0 4px;">&times;</button>
+    </div>
+    <p style="color:#666; font-size:.87rem; margin:6px 0 10px 0;">Two ways to save and continue later:</p>
+
+    <div id="sigStatusInModal" style="background:#eaf3ff; border:1px solid #6b9bd1; color:#1a4a7a; border-radius:6px; padding:10px 12px; margin-bottom:8px; font-size:.85rem;">
+      <strong>📝 Signatures captured:</strong> <span id="sigStatusCount">checking…</span>
+    </div>
+
+    <div style="background:#fff3e7; border:1px solid #d99656; border-radius:6px; padding:10px 12px; margin-bottom:12px; font-size:.83rem; color:#7a4a1a;">
+      <strong>🧹 See unwanted prefilled data?</strong> Click <button onclick="if(confirm('This will delete ALL saved progress + signatures in this browser, then reload the page. Continue?')){clearLocalSave();location.reload();}" style="background:#a64b1a; color:#fff; border:none; padding:4px 10px; border-radius:4px; font-size:.78rem; font-weight:600; cursor:pointer; margin-left:4px;">🗑 Clear all &amp; reload</button> to start fresh.
+    </div>
+
+    <div style="border:1px solid var(--odc-border); border-radius:8px; padding:14px; margin-bottom:12px; background:#fafdf6;">
+      <div style="font-weight:700; color:var(--odc-green); margin-bottom:6px; font-size:.95rem;">① Save in this browser</div>
+      <p style="font-size:.82rem; color:#666; margin:0 0 10px 0;">Auto-saves as you type. Close the tab and come back anytime — it'll all be here.</p>
+      <div style="display:flex; gap:8px;">
+        <button class="btn-odc-outline" onclick="manualSave()" style="font-size:.82rem; padding:6px 12px;">✓ Save Now</button>
+        <button class="btn-odc-outline" onclick="if(confirm('Clear all saved progress in this browser?')) clearLocalSave()" style="font-size:.82rem; padding:6px 12px; color:#a64b2a; border-color:#d0a090;">🗑 Clear Saved</button>
+        <span id="lastSavedAt" style="font-size:.78rem; color:#888; align-self:center; margin-left:auto;"></span>
+      </div>
+    </div>
+
+    <div style="border:1px solid var(--odc-border); border-radius:8px; padding:14px; background:#fafdf6;">
+      <div style="font-weight:700; color:var(--odc-green); margin-bottom:6px; font-size:.95rem;">② Save as shareable link</div>
+      <p style="font-size:.82rem; color:#666; margin:0 0 10px 0;">For continuing on another device or sharing with a teammate. Copy/email the link below.</p>
+      <textarea id="shareUrlBox" readonly style="width:100%; min-height:80px; border:1px solid var(--odc-border); padding:8px 10px; font-size:.75rem; font-family:monospace; word-break:break-all; background:#fff; resize:vertical; border-radius:4px;"></textarea>
+      <div id="shareUrlSize" style="font-size:.72rem; color:#888; margin-top:4px;"></div>
+      <div style="display:flex; gap:8px; margin-top:10px;">
+        <button class="btn-odc" onclick="generateShareUrl()" style="font-size:.82rem; padding:6px 12px;">🔗 Generate Link</button>
+        <button class="btn-odc-outline" onclick="copyShareUrl()" style="font-size:.82rem; padding:6px 12px;">📋 Copy</button>
+        <a id="emailShareLink" href="#" class="btn-odc-outline" style="font-size:.82rem; padding:6px 12px; text-decoration:none; display:inline-block;">✉️ Email</a>
+      </div>
+    </div>
+
+    <div style="display:flex; justify-content:flex-end; margin-top:14px; padding-top:12px; border-top:1px solid #eee;">
+      <button class="btn-odc-outline" onclick="closeSaveModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<main>
+
+  <!-- ============= INTRO: pick which forms to fill (after Client Info) ============= -->
+  <div id="formPicker" class="pi-section no-print" style="display:none;">
+    <div class="pi-section-h">📋 Which other forms do you need?</div>
+    <p class="pi-section-sub">Tick the documents you'd like to fill out. They'll appear as tabs above and auto-fill from the Client Info Form. You can change this any time.</p>
+    <div id="formPickerList" style="display:flex; flex-direction:column; gap:6px; margin-top:6px;"></div>
+    <div style="display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap; margin-top:12px; padding-top:10px; border-top:1px dashed var(--odc-border);">
+      <button type="button" class="btn-odc-outline" onclick="document.querySelectorAll('.fp-pick').forEach(c=>{c.checked=true; c.dispatchEvent(new Event('change'));})" style="font-size:.78rem; padding:5px 10px;">✓ Select All</button>
+      <button type="button" class="btn-odc-outline" onclick="document.querySelectorAll('.fp-pick').forEach(c=>{if(c.dataset.fid!=='client'){c.checked=false; c.dispatchEvent(new Event('change'));}})" style="font-size:.78rem; padding:5px 10px;">Untick others</button>
+    </div>
+
+    <!-- 🗑 Clear all data — start fresh for a new participant -->
+    <div style="margin-top:14px; padding:12px 14px; background:#fef7f3; border:1px solid #d99656; border-radius:8px;">
+      <div style="font-weight:700; color:#7a4a1a; font-size:.92rem; margin-bottom:4px;">🗑 Clear All Information</div>
+      <p style="font-size:.82rem; color:#7a4a1a; margin:0 0 10px 0;">Wipes <strong>everything</strong> in this browser — all form data, signatures, picks, and progress. Use when starting onboarding for a brand-new participant.</p>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button type="button" onclick="clearAllAndReload(false)" style="background:#fff; color:#a64b1a; border:1px solid #d99656; padding:6px 12px; border-radius:6px; font-size:.82rem; font-weight:600; cursor:pointer;">🧹 Clear in this tab</button>
+        <button type="button" onclick="clearAllAndReload(true)" style="background:#a64b1a; color:#fff; border:none; padding:6px 12px; border-radius:6px; font-size:.82rem; font-weight:600; cursor:pointer;">🗑 Clear all &amp; reload</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============= FORM SECTIONS ============= -->
+  <div id="formContainer">
+    <!-- Sections injected by JS below -->
+  </div>
+
+</main>
+
+<script>
+// ====================================================================
+// SIGNATURE SLOT HELPER (must be defined BEFORE form render functions
+// because render templates use ${sigSlot('id')})
+// ====================================================================
+window.sigSlot = function(id, label){
+  const lbl = (label || 'Click to sign').replace(/'/g, '&apos;');
+  return `<div class="sig-slot" data-sigid="${id}" onclick="openSigModal('${id}','${lbl}')"><span class="sig-hint">Click to sign</span></div>`;
+};
+
+// ====================================================================
+// FORM DEFINITIONS — each form is a function returning HTML
+// ====================================================================
+
+function renderClientInfo() {
+  return `
+  <div class="section-actions no-print">
+    <div class="actions-meta">📄 Client Information Form · v0.1 May 2024</div>
+    <button class="btn-odc" onclick="printSection()">🖨️ Print This Form</button>
+  </div>
+  <div class="form-body">
+    <div class="doc-cover">
+      <img src="logo_300.png" alt="One Dream Community" onerror="this.style.display='none'">
+      <div class="doc-cover-title">Client Information Form</div>
+      <div class="doc-cover-subtitle">One Dream Community Care Service</div>
+      <div class="doc-cover-version">v0.1 · MAY 2024</div>
+    </div>
+    <table class="data-table">
+      <tr><td class="lbl">Coordinator Name</td><td><input type="text" data-shared="p_officer"></td>
+          <td class="lbl">Date</td><td><input type="date" data-shared="p_docDate"></td></tr>
+      <tr><td class="lbl">Client Name</td><td><input type="text" data-shared="p_name"></td>
+          <td class="lbl">Sex</td><td>
+            <div class="opts">
+              <label><input type="checkbox"> Male</label>
+              <label><input type="checkbox"> Female</label>
+              <label><input type="checkbox"> Other</label>
+            </div></td></tr>
+      <tr><td class="lbl">Client's Contact</td><td><input type="tel" data-shared="p_mobile"></td>
+          <td class="lbl">NOK Name</td><td><input type="text" data-shared="p_nokName"></td></tr>
+      <tr><td class="lbl">NOK Contact</td><td><input type="tel" data-shared="p_nokPhone"></td>
+          <td class="lbl">Relationship</td><td><input type="text" data-shared="p_nokRel"></td></tr>
+    </table>
+
+    <div class="sub-h">Other Family Members</div>
+    <table class="data-table">
+      <thead><tr style="background:#eaf2e6;"><th>Name</th><th>Contact</th><th>Name</th><th>Contact</th></tr></thead>
+      <tr><td><input type="text"></td><td><input type="tel"></td><td><input type="text"></td><td><input type="tel"></td></tr>
+      <tr><td><input type="text"></td><td><input type="tel"></td><td><input type="text"></td><td><input type="tel"></td></tr>
+    </table>
+
+    <div class="sub-h">Physical Measurements <span style="font-weight:400; font-size:.78rem; color:#a64b2a; font-style:italic;">(Clinical team must record)</span></div>
+    <table class="data-table">
+      <tr>
+        <td class="lbl">Height</td>
+        <td><input type="text" data-shared="p_height" placeholder="e.g. 165 cm"></td>
+        <td class="lbl">Weight</td>
+        <td><input type="text" data-shared="p_weight" placeholder="e.g. 62 kg"></td>
+      </tr>
+      <tr>
+        <td class="lbl">Date measured</td>
+        <td><input type="date" data-shared="p_measureDate"></td>
+        <td class="lbl">Measured by</td>
+        <td><input type="text" data-shared="p_measuredBy" placeholder="Clinical staff name"></td>
+      </tr>
+    </table>
+
+    <div class="doc-section-h">Address &amp; Residence</div>
+    <table class="data-table">
+      <tr><td class="lbl">Street</td><td><input type="text" data-shared="p_street"></td>
+          <td class="lbl">Suburb/State</td><td><input type="text" data-shared="p_suburb"></td></tr>
+      <tr><td class="lbl">Postcode</td><td><input type="text" data-shared="p_postcode"></td>
+          <td class="lbl">Tenure</td><td>
+            <div class="opts">
+              <label><input type="checkbox"> Own</label>
+              <label><input type="checkbox"> Rented</label>
+              <label><input type="checkbox"> Shared</label>
+              <label><input type="checkbox"> Government</label>
+              <label><input type="checkbox"> Other</label>
+            </div></td></tr>
+      <tr><td class="lbl">Type</td><td colspan="3">
+            <div class="opts">
+              <label><input type="checkbox"> House</label>
+              <label><input type="checkbox"> Unit/APT</label>
+              <label><input type="checkbox"> With Garden</label>
+              <label><input type="checkbox"> No Garden</label>
+              <label><input type="checkbox"> Single Story</label>
+              <label><input type="checkbox"> Double Story</label>
+            </div></td></tr>
+      <tr><td class="lbl">Stairs</td><td>
+            <div class="yn-inline"><label><input type="radio" name="stairs"> Yes</label><label><input type="radio" name="stairs"> No</label></div>
+          </td><td class="lbl">If yes, how many?</td><td><input type="text"></td></tr>
+    </table>
+
+    <div class="doc-section-h">Government &amp; Health IDs</div>
+    <table class="data-table">
+      <tr><td class="lbl">Medicare No.</td><td><input type="text" data-shared="p_medicare"></td>
+          <td class="lbl">Pension No.</td><td><input type="text" data-shared="p_pension"></td></tr>
+    </table>
+
+    <div class="doc-section-h">GP &amp; Medical Centre</div>
+    <table class="data-table">
+      <tr><td class="lbl">GP Name</td><td colspan="3"><input type="text" data-shared="p_gpName"></td></tr>
+      <tr><td class="lbl">Medical Centre</td><td><input type="text" data-shared="p_medCentre"></td>
+          <td class="lbl">Contact</td><td><input type="tel" data-shared="p_medCentrePhone"></td></tr>
+    </table>
+
+    <div class="doc-section-h">1. Personal Choice &amp; Preference</div>
+    <table class="data-table"><tr><td class="lbl">Preferred Name</td><td><input type="text" data-shared="p_prefName"></td></tr></table>
+
+    <div class="doc-section-h">2. Aids &amp; Equipment</div>
+    <div class="sub-h">Visual Aid</div>
+    <div class="opts" style="margin-bottom:8px;">
+      <div class="yn-inline"><label><input type="radio" name="visAid"> Yes</label><label><input type="radio" name="visAid"> No</label></div>
+      <span style="font-size:.85rem; color:#666;">If yes:</span>
+      <label><input type="checkbox"> Reading Glasses</label>
+      <label><input type="checkbox"> Normal Glasses</label>
+    </div>
+    <div class="sub-h">Hearing Aid</div>
+    <div class="opts" style="margin-bottom:8px;">
+      <div class="yn-inline"><label><input type="radio" name="hearAid"> Yes</label><label><input type="radio" name="hearAid"> No</label></div>
+      <label><input type="checkbox"> Right</label>
+      <label><input type="checkbox"> Left</label>
+    </div>
+    <div class="sub-h">Mobility Aid</div>
+    <div class="opts">
+      <label><input type="checkbox"> Stick</label>
+      <label><input type="checkbox"> 4-Wheel Walker</label>
+      <label><input type="checkbox"> Wheelchair</label>
+      <label><input type="checkbox"> No Aid</label>
+      <label><input type="checkbox"> Bedbound</label>
+    </div>
+
+    <div class="doc-section-h">3 – 5. History of Falls / Hospital / Supplements</div>
+    <table class="data-table">
+      <tr><td class="lbl">Falls within a year</td><td>
+            <div class="yn-inline"><label><input type="radio" name="fall1y"> Yes</label><label><input type="radio" name="fall1y"> No</label></div>
+          </td><td class="lbl">Falls in last 3 months</td><td>
+            <div class="yn-inline"><label><input type="radio" name="fall3m"> Yes</label><label><input type="radio" name="fall3m"> No</label></div>
+          </td></tr>
+      <tr><td class="lbl">Recent hospital transfer</td><td>
+            <div class="yn-inline"><label><input type="radio" name="hosp"> Yes</label><label><input type="radio" name="hosp"> No</label></div>
+          </td><td class="lbl">Date</td><td><input type="date"></td></tr>
+      <tr><td class="lbl">Supplement Drink</td><td colspan="3">
+            <div class="opts">
+              <label><input type="checkbox"> No</label>
+              <label><input type="checkbox"> Ensure</label>
+              <label><input type="checkbox"> Forticip</label>
+              <label><input type="checkbox"> Souvenaid</label>
+              <label><input type="checkbox"> Other:</label>
+              <input type="text" placeholder="e.g. Glucerna, Sustagen..." style="border:none; border-bottom:1px dashed #aaa; flex:1; min-width:160px; background:transparent; font-size:.85rem;">
+            </div></td></tr>
+    </table>
+
+    <div class="doc-section-h">6. Allied Health</div>
+    <div class="opts" style="margin-bottom:14px;">
+      <label><input type="checkbox"> Physiotherapy</label>
+      <label><input type="checkbox"> Podiatrist</label>
+      <label><input type="checkbox"> Speech Pathologist</label>
+      <label><input type="checkbox"> Dietician</label>
+      <label><input type="checkbox"> Other:</label>
+      <input type="text" style="border:none; border-bottom:1px dashed #aaa; flex:1; min-width:120px; background:transparent; font-size:.85rem;">
+    </div>
+
+    <div class="doc-section-h">7. Social Life</div>
+    <table class="data-table">
+      <tr>
+        <td class="lbl">Active Social Life?</td>
+        <td><div class="yn-inline"><label><input type="radio" name="social"> Yes</label><label><input type="radio" name="social"> No</label></div></td>
+        <td class="lbl">Details</td>
+        <td><input type="text"></td>
+      </tr>
+    </table>
+
+    <div class="doc-section-h">8 – 10. Home Safety, Modification &amp; OT</div>
+    <table class="data-table">
+      <tr>
+        <td class="lbl">Home Safety Issues</td>
+        <td><div class="yn-inline"><label><input type="radio" name="hSafety"> Yes</label><label><input type="radio" name="hSafety"> No</label></div></td>
+        <td class="lbl">Modification Required</td>
+        <td><div class="yn-inline"><label><input type="radio" name="hMod"> Yes</label><label><input type="radio" name="hMod"> No</label></div></td>
+      </tr>
+      <tr>
+        <td class="lbl">OT Review Required</td>
+        <td colspan="3"><div class="yn-inline"><label><input type="radio" name="otR"> Yes</label><label><input type="radio" name="otR"> No</label></div></td>
+      </tr>
+      <tr>
+        <td class="lbl">If yes, details</td>
+        <td colspan="3"><textarea placeholder="Details..."></textarea></td>
+      </tr>
+    </table>
+
+    <div class="doc-section-h">11. Physical Ability (IADLs)</div>
+    <table class="data-table">
+      <thead><tr style="background:#eaf2e6;"><th>Activity</th><th>Independent?</th><th>If no, required</th></tr></thead>
+      <tr><td class="lbl" style="width:25%;">Shopping</td><td style="width:20%;">
+            <div class="yn-inline"><label><input type="radio" name="shop"> Yes</label><label><input type="radio" name="shop"> No</label></div>
+          </td><td><input type="text"></td></tr>
+      <tr><td class="lbl">Cleaning</td><td>
+            <div class="yn-inline"><label><input type="radio" name="clean"> Yes</label><label><input type="radio" name="clean"> No</label></div>
+          </td><td><input type="text"></td></tr>
+      <tr><td class="lbl">Cooking</td><td>
+            <div class="yn-inline"><label><input type="radio" name="cook"> Yes</label><label><input type="radio" name="cook"> No</label></div>
+          </td><td><input type="text"></td></tr>
+      <tr><td class="lbl">Gardening</td><td>
+            <div class="opts">
+              <label><input type="radio" name="garden"> Yes</label>
+              <label><input type="radio" name="garden"> No</label>
+              <label><input type="radio" name="garden"> N/A</label>
+            </div>
+          </td><td><input type="text"></td></tr>
+    </table>
+
+    <div class="doc-section-h">12. Nursing Care Needs</div>
+    <table class="data-table">
+      <tr><td class="lbl">Wound</td><td>
+            <div class="yn-inline"><label><input type="radio" name="wound"> Yes</label><label><input type="radio" name="wound"> No</label></div>
+          </td><td class="lbl">Stoma</td><td>
+            <div class="yn-inline"><label><input type="radio" name="stoma"> Yes</label><label><input type="radio" name="stoma"> No</label></div>
+          </td></tr>
+      <tr><td class="lbl">Catheter</td><td colspan="3">
+            <div class="opts">
+              <label><input type="radio" name="cath"> Yes</label>
+              <label><input type="radio" name="cath"> No</label>
+              <label><input type="checkbox"> IDC</label>
+              <label><input type="checkbox"> SPC</label>
+            </div></td></tr>
+      <tr><td class="lbl">Smoking</td><td>
+            <div class="yn-inline"><label><input type="radio" name="smoke"> Yes</label><label><input type="radio" name="smoke"> No</label></div>
+          </td><td class="lbl">Drinking</td><td>
+            <div class="yn-inline"><label><input type="radio" name="drink"> Yes</label><label><input type="radio" name="drink"> No</label></div>
+          </td></tr>
+    </table>
+
+    <div class="doc-section-h">Memo / Other Notes</div>
+    <textarea style="width:100%; min-height:120px; border:1px solid #d6d6d0; padding:8px; font-family:inherit;"></textarea>
+  </div>`;
+}
+
+function renderHomeSafety() {
+  const sections = {
+    'Entrance / Outside / Garden': [
+      'Self parking is available?',
+      'Security gates and other gates are easy to open and close?',
+      'Pathway or driveway is free of slip / trip / fall hazards?',
+      'External doorways are clear of obstructions?',
+    ],
+    'Inside the Home – All Rooms': [
+      'Floor surfaces are free of slip / trip / fall hazards?',
+      'Electrical equipment, cords and power points are observed to be safe?',
+      'Adequate lighting and workspace?',
+      'Smoke detectors present and working?',
+      'Pets are contained / restrained separate from staff?',
+      'Mobile phone reception is available?',
+      'Home is observed to be free of evidence of vermin?',
+    ],
+    'Kitchen': [
+      'Stove / microwave / fridge safe and in good working order?',
+      'Food preparation surfaces / equipment are appropriate?',
+    ],
+    'Bathroom / Toilet': [
+      'Shower / bath / toilet has sufficient area to assist client?',
+      'If required, hand rails are in place?',
+      'Heater is safely placed and safe to use?',
+      'Bath / Shower – appropriate design, non-slip surface?',
+    ],
+    'Bedroom': [
+      'Bed height suitable to assist the client?',
+      'Bed access has sufficient space all around?',
+    ],
+    'Laundry': [
+      'Location of washing machine / clothes dryer easy to access?',
+      'Clothesline has safe access, right height?',
+    ],
+    'Aids and Equipment': [
+      'Commode for the task?',
+      'Lifting equipment adequate?',
+      'Sufficient area to assist the client?',
+      'Pressurised oxygen cylinders in use?',
+      'Frames / walking aids working in order?',
+      'Ramps / rails in appropriate positions and good condition?',
+    ],
+    'People in the Home': [
+      'Passive smoking: home is smoke free in your presence?',
+      'Aggression / harassment: do you feel safe in the home?',
+      'Weapons on property: secured and locked away?',
+    ],
+  };
+  let html = '';
+  Object.entries(sections).forEach(([title, items], si) => {
+    html += `<div class="doc-section-h">${title}</div>`;
+    html += `<table class="check-table"><thead><tr><th>Item</th><th class="yn">Yes</th><th class="yn">No</th><th class="yn">N/A</th><th style="width:32%;">Comments</th></tr></thead><tbody>`;
+    items.forEach((q, i) => {
+      const n = `hs_${si}_${i}`;
+      html += `<tr><td>${q}</td><td class="yn"><input type="radio" name="${n}"></td><td class="yn"><input type="radio" name="${n}"></td><td class="yn"><input type="radio" name="${n}"></td><td><input type="text"></td></tr>`;
+    });
+    html += `</tbody></table>`;
+  });
+  return `
+  <div class="section-actions no-print">
+    <div class="actions-meta">🏠 Home Safety Checklist · v1.0 2026</div>
+    <button class="btn-odc" onclick="printSection()">🖨️ Print This Form</button>
+  </div>
+  <div class="form-body">
+    <div class="doc-cover">
+      <img src="logo_300.png" alt="One Dream Community" onerror="this.style.display='none'">
+      <div class="doc-cover-title">Home Safety Checklist</div>
+      <div class="doc-cover-subtitle">One Dream Community Care Service</div>
+      <div class="doc-cover-version">v1.0 · 2026</div>
+    </div>
+    <table class="data-table">
+      <tr><td class="lbl">Date</td><td><input type="date" data-shared="p_docDate"></td>
+          <td class="lbl">Prepared by</td><td><input type="text" data-shared="p_officer"></td></tr>
+    </table>
+    <div class="doc-section-h">Participant Information</div>
+    <table class="data-table">
+      <tr><td class="lbl">Full Name</td><td><input type="text" data-shared="p_name"></td>
+          <td class="lbl">Date of Birth</td><td><input type="date" data-shared="p_dob"></td></tr>
+      <tr><td class="lbl">Gender</td><td colspan="3">
+            <div class="opts">
+              <label><input type="checkbox"> Male</label>
+              <label><input type="checkbox"> Female</label>
+              <label><input type="checkbox"> Gender Variant</label>
+            </div></td></tr>
+    </table>
+    ${html}
+    <div class="doc-section-h">Identified Alerts (Emergency Procedure)</div>
+    <div class="alerts-box">
+      <div class="alerts-title">⚠️ Emergency Procedure</div>
+      <div class="alerts-body">
+        <ol>
+          <li>Call <strong>000</strong> for an ambulance (start CPR if needed).</li>
+          <li>Call the Coordinator (Care Partner) or office.</li>
+          <li>Stay with the participant and reassure them until help arrives.</li>
+          <li>Provide the ambulance with medical information.</li>
+          <li>Notify the Coordinator immediately.</li>
+          <li>Complete and email the incident form to the Coordinator.</li>
+        </ol>
+      </div>
+    </div>
+    <div class="sign-grid">
+      <div class="field"><label>Name</label><input type="text" data-shared="p_officer"></div>
+      <div class="field"><label>Signature</label>${sigSlot('sig_1')}</div>
+      <div class="field"><label>Date</label><input type="date" data-shared="p_docDate"></div>
+    </div>
+  </div>`;
+}
+
+function renderEligibility() {
+  const eligibility = [
+    'Participant understands that One Dream Community remains the Registered Provider and is responsible for oversight, compliance, and reporting.',
+    'Participant has received and reviewed the Self-Managed Service Agreement and had an opportunity to ask questions.',
+  ];
+  const capacity = [
+    ['A. Cognitive and decision-making', 'Can the participant make informed decisions regarding services, providers, and budgets?'],
+    ['A. Cognitive and decision-making', 'Has the participant demonstrated understanding of self-management responsibilities?'],
+    ['A. Cognitive and decision-making', 'If limited, is there a Supporter or Legal Representative authorised to assist?'],
+    ['B. Communication skills', 'Can the participant communicate clearly with providers and One Dream Community?'],
+    ['B. Communication skills', 'Requires interpreter or communication aid?'],
+    ['C. Organisational skills', 'Can the participant schedule, coordinate, or adjust services when required?'],
+    ['C. Organisational skills', 'Has the participant demonstrated ability to manage appointments and respond to care updates?'],
+    ['D. Technology access', 'Has access to CareTok or email to view Care Plan, Budget, and invoices?'],
+    ['D. Technology access', 'Requires assistance using CareTok or digital tools?'],
+    ['E. Budget awareness', 'Understands how to read a budget and track funds?'],
+    ['E. Budget awareness', 'Understands that services exceeding budget will be paid personally?'],
+    ['F. Health and wellbeing', 'Any condition that may impair ability to self-manage safely?'],
+    ['F. Health and wellbeing', 'Is risk management or regular monitoring required?'],
+    ['G. Support network', 'Has ongoing support from family, carer, or advocate if needed?'],
+  ];
+  const risks = [
+    ['Financial risk', 'Mismanagement of funds'],
+    ['Service delivery risk', 'Missed services, quality gaps'],
+    ['Health/safety risk', 'Neglect, non-compliance with care plan'],
+    ['Communication risk', 'Difficulty staying in touch with providers'],
+  ];
+  let eligRows = '';
+  eligibility.forEach((q, i) => {
+    eligRows += `<tr><td colspan="2">${q}</td><td><div class="yn-group"><label><input type="radio" name="elig_${i}"> Yes</label><label><input type="radio" name="elig_${i}"> No</label></div><input type="text" placeholder="Comments..."></td></tr>`;
+  });
+  let capRows = '';
+  let prevArea = '';
+  capacity.forEach((row, i) => {
+    const [area, q] = row;
+    const areaCell = (area === prevArea)
+      ? `<td class="area" style="background:#f4f9f0; color:#7a9b6f; font-weight:500;">↳</td>`
+      : `<td class="area">${area}</td>`;
+    prevArea = area;
+    capRows += `<tr>${areaCell}<td class="question">${q}</td><td class="response"><div class="yn-group"><label><input type="radio" name="cap_${i}"> Yes</label><label><input type="radio" name="cap_${i}"> No</label></div><input type="text" placeholder="Comments..."></td></tr>`;
+  });
+  let riskRows = '';
+  risks.forEach((r, i) => {
+    riskRows += `<tr><td>${r[0]}</td><td>${r[1]}</td><td><div class="yn-group" style="display:flex; flex-wrap:wrap; gap:6px 10px; align-items:center;"><label style="white-space:nowrap;"><input type="radio" name="risk_${i}"> Low</label><label style="white-space:nowrap;"><input type="radio" name="risk_${i}"> Med</label><label style="white-space:nowrap;"><input type="radio" name="risk_${i}"> High</label></div></td><td><input type="text" placeholder="Mitigation..." style="width:100%; box-sizing:border-box;"></td></tr>`;
+  });
+  return `
+  <div class="section-actions no-print">
+    <div class="actions-meta">✅ Self-Managed Eligibility Checklist · v1.0 2026</div>
+    <button class="btn-odc" onclick="printSection()">🖨️ Print This Form</button>
+  </div>
+  <div class="form-body">
+    <div class="doc-cover">
+      <img src="logo_300.png" alt="One Dream Community" onerror="this.style.display='none'">
+      <div class="doc-cover-title">Self-Managed Eligibility Checklist</div>
+      <div class="doc-cover-subtitle">One Dream Community Care Service</div>
+      <div class="doc-cover-version">v1.0 · 2026</div>
+    </div>
+    <div class="doc-section-h">1. Participant Details</div>
+    <table class="data-table">
+      <tr><td class="lbl">Participant Name</td><td><input type="text" data-shared="p_name"></td></tr>
+      <tr><td class="lbl">Date of Birth</td><td><input type="date" data-shared="p_dob"></td></tr>
+      <tr><td class="lbl">Address</td><td><input type="text" data-shared="p_street"></td></tr>
+      <tr><td class="lbl">Phone / Email</td><td><input type="text" data-shared="p_mobile"></td></tr>
+      <tr><td class="lbl">Date of Assessment</td><td><input type="date" data-shared="p_docDate"></td></tr>
+      <tr><td class="lbl">Assessor / Care Partner</td><td><input type="text" data-shared="p_officer"></td></tr>
+      <tr><td class="lbl">Supporter / Legal Rep</td><td><input type="text" data-shared="p_legal"></td></tr>
+    </table>
+    <div class="doc-section-h">2. Eligibility Confirmation</div>
+    <table class="cap-table"><thead><tr><th colspan="2">Criteria</th><th class="response">Yes / No · Comments</th></tr></thead><tbody>${eligRows}</tbody></table>
+    <div class="doc-section-h">3. Capacity &amp; Suitability Assessment</div>
+    <table class="cap-table"><thead><tr><th class="area">Area</th><th class="question">Question</th><th class="response">Yes / No · Comments</th></tr></thead><tbody>${capRows}</tbody></table>
+    <div class="doc-section-h">4. Risk &amp; Safety Review</div>
+    <table class="cap-table" style="table-layout:fixed; width:100%;"><thead><tr><th style="width:18%;">Risk Area</th><th style="width:28%;">Description</th><th style="width:24%;">Level</th><th style="width:30%;">Comments</th></tr></thead><tbody>${riskRows}</tbody></table>
+    <div class="doc-section-h">5. Summary Outcome</div>
+    <table class="cap-table">
+      <thead><tr><th>Decision</th><th style="width:8%; text-align:center;">Tick</th><th>Comments</th></tr></thead>
+      <tr><td>Eligible for full self-management</td><td style="text-align:center;"><input type="checkbox" style="width:18px; height:18px;"></td><td><input type="text"></td></tr>
+      <tr><td>Eligible with support (partial)</td><td style="text-align:center;"><input type="checkbox" style="width:18px; height:18px;"></td><td><input type="text"></td></tr>
+      <tr><td>Not eligible – recommend managed model</td><td style="text-align:center;"><input type="checkbox" style="width:18px; height:18px;"></td><td><input type="text"></td></tr>
+    </table>
+    <div class="doc-section-h">6. Assessor Declaration</div>
+    <div class="declaration">I confirm that I have assessed the participant's capacity and suitability for self-management in line with the Self-Managed Service Agreement and relevant Support at Home guidelines.</div>
+    <div class="sign-grid">
+      <div class="field"><label>Name / Position</label><input type="text" data-shared="p_officer"></div>
+      <div class="field"><label>Signature</label>${sigSlot('sig_2')}</div>
+      <div class="field"><label>Date</label><input type="date" data-shared="p_docDate"></div>
+    </div>
+    <div class="doc-section-h">7. Participant / Supporter Acknowledgement</div>
+    <div class="declaration">I understand my rights and responsibilities under self-management and agree to participate according to my assessed capacity.</div>
+    <table class="data-table">
+      <thead><tr><th>Role</th><th>Name</th><th>Signature</th><th>Date</th></tr></thead>
+      <tr><td class="lbl">Participant</td><td><input type="text" data-shared="p_name"></td><td>${sigSlot('sig_3')}</td><td><input type="date"></td></tr>
+      <tr><td class="lbl">Supporter / Rep</td><td><input type="text" data-shared="p_legal"></td><td>${sigSlot('sig_4')}</td><td><input type="date"></td></tr>
+    </table>
+  </div>`;
+}
+
+function renderIntake() {
+  const items = [
+    'Eligibility criteria for entry to the service.',
+    "Right to access a support person/advocate of your choice.",
+    'Information and support to assist participants using the service.',
+    'How service works with clients to develop a personalised plan.',
+    'Procedures for accessing or nominating a support person.',
+    'Support which will be provided and how often plan reviewed.',
+    'Privacy and confidentiality policy.',
+    'Procedures for release of personal information.',
+    'How participant can participate in decision-making and complaints.',
+    'Statement of Rights provided.',
+    'Participant Handbook provided.',
+    'Information on Advanced Care Directive provided.',
+  ];
+  let rows = '';
+  items.forEach((item, i) => {
+    rows += `<tr><td>${item}</td><td style="text-align:center;"><input type="checkbox" class="intake-chk" style="width:16px; height:16px; accent-color:var(--odc-green);"></td></tr>`;
+  });
+  return `
+  <div class="section-actions no-print">
+    <div class="actions-meta">📋 Participant Intake Checklist · v1.0 2026</div>
+    <button class="btn-odc" onclick="printSection()">🖨️ Print This Form</button>
+  </div>
+  <div class="form-body">
+    <div class="doc-cover">
+      <img src="logo_300.png" alt="One Dream Community" onerror="this.style.display='none'">
+      <div class="doc-cover-title">Participant Intake Checklist</div>
+      <div class="doc-cover-subtitle">One Dream Community Care Service</div>
+      <div class="doc-cover-version">v1.0 · 2026</div>
+    </div>
+    <table class="data-table">
+      <tr><td class="lbl">Participant Name</td><td><input type="text" data-shared="p_name"></td></tr>
+      <tr><td class="lbl">Assessment Officer</td><td><input type="text" data-shared="p_officer"></td></tr>
+      <tr><td class="lbl">Date</td><td><input type="date" data-shared="p_docDate"></td></tr>
+    </table>
+    <div class="no-print" style="display:flex; justify-content:flex-end; gap:8px; margin:8px 0;">
+      <button type="button" class="btn-odc-outline" onclick="document.querySelectorAll('.intake-chk').forEach(c=>c.checked=true)">✓ Tick All</button>
+      <button type="button" class="btn-odc-outline" onclick="document.querySelectorAll('.intake-chk').forEach(c=>c.checked=false)">✗ Untick All</button>
+    </div>
+    <table class="data-table">
+      <thead><tr><th>Topic</th><th style="width:12%; text-align:center;">Tick</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div style="background:#f9f9f5; border:1px solid #d6d6d0; border-radius:6px; padding:14px; margin-top:14px;">
+      <p style="font-weight:700; margin-bottom:6px;">Acknowledgement</p>
+      <p style="margin-bottom:12px; font-size:.87rem;">I acknowledge the above information has been explained and I understand it.</p>
+      <table class="data-table" style="margin:0;">
+        <tr><td class="lbl">Participant Signature</td><td>${sigSlot('sig_5')}</td>
+            <td class="lbl">Date</td><td><input type="date" data-shared="p_docDate"></td></tr>
+      </table>
+    </div>
+  </div>`;
+}
+
+function renderConsent() {
+  const items = [
+    "One Dream Community's Privacy and Confidentiality Policy",
+    "Personal information collection and access",
+    "Interpreter services if requested",
+    "Personal information storage",
+    "Authority to involve others in assessment / planning",
+    "Use of restraints in compliance with legislation if required",
+    "Information sharing with relevant care providers",
+  ];
+  let rows = '';
+  items.forEach((item, i) => {
+    rows += `<tr><td>${item}</td><td style="text-align:center;"><input type="checkbox" style="width:16px; height:16px; accent-color:var(--odc-green);"></td></tr>`;
+  });
+  return `
+  <div class="section-actions no-print">
+    <div class="actions-meta">📝 Participant Consent Form · v1.0 2026</div>
+    <button class="btn-odc" onclick="printSection()">🖨️ Print This Form</button>
+  </div>
+  <div class="form-body">
+    <div class="doc-cover">
+      <img src="logo_300.png" alt="One Dream Community" onerror="this.style.display='none'">
+      <div class="doc-cover-title">Participant Consent Form</div>
+      <div class="doc-cover-subtitle">One Dream Community Care Service</div>
+      <div class="doc-cover-version">v1.0 · 2026</div>
+    </div>
+    <div class="doc-section-h">Participant Details</div>
+    <table class="data-table">
+      <tr><td class="lbl">Full Name</td><td><input type="text" data-shared="p_name"></td>
+          <td class="lbl">Aged Care ID</td><td><input type="text" data-shared="p_acId"></td></tr>
+      <tr><td class="lbl">Date of Birth</td><td><input type="date" data-shared="p_dob"></td>
+          <td class="lbl">Mobile</td><td><input type="tel" data-shared="p_mobile"></td></tr>
+      <tr><td class="lbl">Email</td><td colspan="3"><input type="email" data-shared="p_email"></td></tr>
+      <tr><td class="lbl">Address</td><td colspan="3"><input type="text" data-shared="p_street"></td></tr>
+    </table>
+    <div class="doc-section-h">Consent Items</div>
+    <p style="font-size:.87rem;"><strong>I want to acknowledge that One Dream Community Care Service has advised me of the following:</strong></p>
+    <table class="data-table">
+      <thead><tr><th>Item</th><th style="width:12%; text-align:center;">Acknowledged</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="doc-section-h">Consent Decision</div>
+    <p style="font-size:.85rem;">I consent / do not consent for One Dream Community Care Service to collect and disclose my personal information.</p>
+    <div style="background:#fafdf6; border:1px solid var(--odc-border); border-radius:6px; padding:14px; margin-bottom:10px;">
+      <table class="data-table" style="margin:0;">
+        <tr><td><strong>I CONSENT</strong> — Signature</td><td>${sigSlot('sig_6')}</td>
+            <td>Date</td><td><input type="date" data-shared="p_docDate"></td></tr>
+      </table>
+    </div>
+    <div style="background:#fef7f3; border:1px solid #f0d0b0; border-radius:6px; padding:14px;">
+      <table class="data-table" style="margin:0;">
+        <tr><td><strong>I DO NOT CONSENT</strong> — Signature</td><td>${sigSlot('sig_7')}</td>
+            <td>Date</td><td><input type="date"></td></tr>
+      </table>
+    </div>
+  </div>`;
+}
+
+function renderEmergency() {
+  const generalItems = [
+    'I live alone or am socially isolated',
+    'I live in a home without a cooling system',
+    'I am unable to evacuate independently if required',
+  ];
+  const consentItems = [
+    'Knock loudly and ring the doorbell numerous times.',
+    'Look in the windows, if it is safe to do so.',
+    "Check the house for 'signs of life' or a 'disturbance'.",
+    'Contact the ODC office for further instruction.',
+    'ODC office will call your home/mobile phone.',
+    'In Non-Response, your Emergency Contacts would be contacted.',
+    "I understand staff have a duty of care to assume I am unwell if no info confirms otherwise.",
+  ];
+  const powerOpts = [
+    'I can relocate temporarily to family or friends.',
+    'I can relocate temporarily to short term accommodation, medical or emergency facility.',
+    'I require assistance from One Dream Community on the options available.',
+  ];
+  const evacuateOpts = [
+    'Do so independently',
+    'Seek assistance from family or friends',
+    'Requires support from emergency services like ambulance, police, fire brigade',
+  ];
+  const takeOpts = ['Essential medical equipment', 'Essential mobility equipment', 'Essential medication', 'Others'];
+
+  let genHtml = '';
+  generalItems.forEach((q, i) => {
+    genHtml += `<label style="display:flex; align-items:flex-start; gap:8px; margin-bottom:6px; cursor:pointer; font-size:.87rem;"><input type="checkbox" style="width:16px; height:16px; margin-top:2px;"><span>${q}</span></label>`;
+  });
+  let consHtml = '';
+  consentItems.forEach((q, i) => {
+    consHtml += `<label style="display:flex; align-items:flex-start; gap:8px; margin-bottom:5px; cursor:pointer; font-size:.87rem;"><input type="checkbox" style="width:16px; height:16px; margin-top:2px;"><span>${i+1}. ${q}</span></label>`;
+  });
+  let powerHtml = powerOpts.map((q,i)=>`<label style="display:flex; align-items:flex-start; gap:8px; margin-bottom:5px; cursor:pointer; font-size:.87rem;"><input type="checkbox" style="width:16px; height:16px; margin-top:2px;"><span>${i+1}. ${q}</span></label>`).join('');
+  let evacHtml = evacuateOpts.map((q,i)=>`<label style="display:flex; align-items:flex-start; gap:8px; margin-bottom:5px; cursor:pointer; font-size:.87rem;"><input type="checkbox" style="width:16px; height:16px; margin-top:2px;"><span>${i+1}. ${q}</span></label>`).join('');
+  let takeHtml = takeOpts.map((q,i)=>`<label style="display:flex; align-items:flex-start; gap:8px; margin-bottom:5px; cursor:pointer; font-size:.87rem;"><input type="checkbox" style="width:16px; height:16px; margin-top:2px;"><span>${i+1}. ${q}</span></label>`).join('');
+
+  return `
+  <div class="section-actions no-print">
+    <div class="actions-meta">🚨 Emergency &amp; Disaster Management Plan · v1.0 2026</div>
+    <button class="btn-odc" onclick="printSection()">🖨️ Print This Form</button>
+  </div>
+  <div class="form-body">
+    <div class="doc-cover">
+      <img src="logo_300.png" alt="One Dream Community" onerror="this.style.display='none'">
+      <div class="doc-cover-title">Emergency &amp; Disaster Management Plan</div>
+      <div class="doc-cover-subtitle">One Dream Community Care Service</div>
+      <div class="doc-cover-version">v1.0 · 2026</div>
+    </div>
+    <div class="doc-section-h">Client Information</div>
+    <table class="data-table">
+      <tr><td class="lbl">Name</td><td><input type="text" data-shared="p_name"></td>
+          <td class="lbl">DOB</td><td><input type="date" data-shared="p_dob"></td></tr>
+      <tr><td class="lbl">Address</td><td><input type="text" data-shared="p_street"></td>
+          <td class="lbl">Suburb/State</td><td><input type="text" data-shared="p_suburb"></td></tr>
+      <tr><td class="lbl">Postcode</td><td><input type="text" data-shared="p_postcode"></td>
+          <td class="lbl">Mobile</td><td><input type="tel" data-shared="p_mobile"></td></tr>
+      <tr><td class="lbl">Emergency Contact</td><td colspan="3"><input type="text"></td></tr>
+    </table>
+
+    <div class="doc-section-h">General Information</div>
+    <div style="margin-bottom:12px;">${genHtml}</div>
+
+    <div class="doc-section-h">Consent for Staff Action during Non-Response Visit</div>
+    <p style="font-size:.87rem;"><strong>Please tick each below if you consent:</strong></p>
+    <div style="margin-bottom:14px;">${consHtml}</div>
+
+    <div class="doc-section-h">Consent to Key Safe Access</div>
+    <div style="margin-bottom:12px;">
+      <label style="display:flex; align-items:flex-start; gap:8px; margin-bottom:6px; cursor:pointer; font-size:.87rem;">
+        <input type="checkbox" style="width:16px; height:16px; margin-top:2px;">
+        <span>Authorize staff to enter the home when client safety may be at risk.</span>
+      </label>
+      <label style="display:flex; align-items:flex-start; gap:8px; margin-bottom:8px; cursor:pointer; font-size:.87rem;">
+        <input type="checkbox" style="width:16px; height:16px; margin-top:2px;">
+        <span>I do not permit staff to enter my home in Non-Response.</span>
+      </label>
+    </div>
+    <table class="data-table" style="margin-bottom:12px;">
+      <tr><td class="lbl" style="width:25%;">Key Safe Location</td><td><input type="text"></td>
+          <td class="lbl" style="width:18%;">Lock Code</td><td><input type="text"></td></tr>
+    </table>
+
+    <div style="margin-bottom:12px;">
+      <label style="display:flex; align-items:flex-start; gap:8px; margin-bottom:6px; cursor:pointer; font-size:.87rem;">
+        <input type="checkbox" style="width:16px; height:16px; margin-top:2px;">
+        <span>I use essential equipment requiring electricity (CPAP, O2, etc.)</span>
+      </label>
+      <div style="margin-left:24px; margin-top:4px;">
+        <strong style="font-size:.85rem;">Please specify:</strong>
+        <input type="text" style="width:80%; border:none; border-bottom:1px solid #999; font-size:.85rem; background:transparent; padding:2px 0; margin-left:6px;">
+      </div>
+    </div>
+
+    <p style="font-size:.87rem; font-weight:700; margin-bottom:6px;">If I am without power,</p>
+    <div style="margin-bottom:12px; margin-left:6px;">${powerHtml}</div>
+
+    <p style="font-size:.87rem; font-weight:700; margin-bottom:6px;">If I need to evacuate, I will</p>
+    <div style="margin-bottom:12px; margin-left:6px;">${evacHtml}</div>
+
+    <p style="font-size:.87rem; font-weight:700; margin-bottom:6px;">In case of evacuation, I must take</p>
+    <div style="margin-bottom:14px; margin-left:6px;">${takeHtml}</div>
+
+    <div class="doc-section-h">Acknowledgment – Signatures</div>
+    <table class="data-table">
+      <thead><tr><th style="width:42%;">Name</th><th style="width:35%;">Signature</th><th>Date</th></tr></thead>
+      <tr><td><strong>Client:</strong> <input type="text" data-shared="p_name"></td><td>${sigSlot('sig_8')}</td><td><input type="date" data-shared="p_docDate"></td></tr>
+      <tr><td><strong>Representative:</strong> <input type="text"></td><td>${sigSlot('sig_9')}</td><td><input type="date"></td></tr>
+      <tr><td><strong>Staff Member:</strong> <input type="text" data-shared="p_officer"></td><td>${sigSlot('sig_10')}</td><td><input type="date" data-shared="p_docDate"></td></tr>
+    </table>
+  </div>`;
+}
+
+// ====================================================================
+// FORM REGISTRY + RENDER + NAV
+// ====================================================================
+const FORMS = [
+  { id: 'client',    label: '📄 Client Info',     render: renderClientInfo },
+  { id: 'safety',    label: '🏠 Home Safety',     render: renderHomeSafety },
+  { id: 'intake',    label: '📋 Intake',          render: renderIntake },
+  { id: 'consent',   label: '📝 Consent',         render: renderConsent },
+  { id: 'emergency', label: '🚨 Emergency',       render: renderEmergency },
+  { id: 'eligibility', label: '✅ SM Eligibility',render: renderEligibility },
+];
+
+const formTabs = document.getElementById('formTabs');
+const formContainer = document.getElementById('formContainer');
+
+FORMS.forEach((f, i) => {
+  const btn = document.createElement('button');
+  btn.className = 'nav-btn' + (i === 0 ? ' active' : '');
+  btn.textContent = f.label;
+  btn.dataset.target = f.id;
+  btn.onclick = () => showForm(f.id);
+  formTabs.appendChild(btn);
+
+  const sec = document.createElement('section');
+  sec.className = 'form-section' + (i === 0 ? ' active' : '');
+  sec.id = 'form-' + f.id;
+  sec.innerHTML = f.render();
+  formContainer.appendChild(sec);
+});
+
+// ====================================================================
+// FORM PICKER — selectively show/hide form tabs
+// Default: only the first form ('client' = Client Info) is enabled.
+// User picks additional forms via the picker panel.
+// ====================================================================
+const PICK_KEY = 'odc_all_forms_picks_v1';
+function getPicks(){
+  try {
+    const raw = localStorage.getItem(PICK_KEY);
+    if (raw) {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr)) return new Set(arr);
+    }
+  } catch(e){}
+  // Default: only the first form (Client Info) is picked
+  return new Set([FORMS[0].id]);
+}
+function setPicks(set){
+  try { localStorage.setItem(PICK_KEY, JSON.stringify(Array.from(set))); } catch(e){}
+}
+let _picks = getPicks();
+// Always force the first form (Client Info) to be picked — it's the intro
+_picks.add(FORMS[0].id);
+
+function applyPicksToTabs(){
+  document.querySelectorAll('#formTabs .nav-btn').forEach(btn => {
+    const id = btn.dataset.target;
+    btn.style.display = _picks.has(id) ? '' : 'none';
+  });
+  // If the currently-active form was un-picked, fall back to Client Info
+  const active = document.querySelector('.form-section.active');
+  if (active) {
+    const aid = active.id.replace('form-', '');
+    if (!_picks.has(aid)) showForm(FORMS[0].id);
+  }
+}
+
+function buildFormPicker(){
+  const list = document.getElementById('formPickerList');
+  if (!list) return;
+  list.innerHTML = '';
+  FORMS.forEach(f => {
+    const isFirst = f.id === FORMS[0].id;
+    const row = document.createElement('label');
+    row.style.cssText = 'display:flex; align-items:center; gap:10px; padding:8px 10px; border:1px solid var(--odc-border); border-radius:6px; background:#fff; cursor:pointer;';
+    if (isFirst) row.style.opacity = '0.7';
+    row.innerHTML = `
+      <input type="checkbox" class="fp-pick" data-fid="${f.id}" ${_picks.has(f.id) ? 'checked' : ''} ${isFirst ? 'disabled' : ''} style="width:18px; height:18px; accent-color:var(--odc-green);">
+      <span style="font-size:.9rem; flex:1;">${f.label}${isFirst ? ' <span style="color:#888; font-size:.75rem;">(always shown — intro)</span>' : ''}</span>
+    `;
+    list.appendChild(row);
+  });
+  // Wire up the change listeners
+  list.querySelectorAll('.fp-pick').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const id = cb.dataset.fid;
+      if (cb.checked) _picks.add(id); else _picks.delete(id);
+      _picks.add(FORMS[0].id); // safety — always keep intro
+      setPicks(_picks);
+      applyPicksToTabs();
+    });
+  });
+}
+buildFormPicker();
+applyPicksToTabs();
+
+window.togglePicker = function(){
+  const fp = document.getElementById('formPicker');
+  if (!fp) return;
+  fp.style.display = (fp.style.display === 'none' || !fp.style.display) ? '' : 'none';
+  if (fp.style.display === '') fp.scrollIntoView({ behavior: 'smooth', block: 'center' });
+};
+
+// On first ever visit (no picks saved), open the picker so user knows it's there
+if (!localStorage.getItem(PICK_KEY)) {
+  setTimeout(() => {
+    const fp = document.getElementById('formPicker');
+    if (fp) fp.style.display = '';
+  }, 600);
+}
+
+function showForm(id) {
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.target === id));
+  document.querySelectorAll('.form-section').forEach(s => s.classList.toggle('active', s.id === 'form-' + id));
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+function printSection() { window.print(); }
+
+// ====================================================================
+// data-shared auto-sync (Type once, populate everywhere)
+// ====================================================================
+const PREFIX = 'odc_shared_';
+function flashSaved() {
+  const el = document.getElementById('piFlash');
+  if (!el) return;
+  el.classList.add('show');
+  clearTimeout(window._flashTimer);
+  window._flashTimer = setTimeout(() => el.classList.remove('show'), 1200);
+}
+
+function syncAllDataShared() {
+  document.querySelectorAll('[data-shared]').forEach(el => {
+    const key = PREFIX + el.dataset.shared;
+    // Restore
+    try {
+      const v = localStorage.getItem(key);
+      if (v !== null) {
+        if (el.type === 'checkbox' || el.type === 'radio') el.checked = (v === '1');
+        else if (el.value === '') el.value = v;
+      }
+    } catch(e){}
+    if (el._sharedBound) return;
+    el._sharedBound = true;
+    const evt = (el.type === 'checkbox' || el.type === 'radio') ? 'change' : 'input';
+    el.addEventListener(evt, () => {
+      try {
+        if (el.type === 'checkbox' || el.type === 'radio') localStorage.setItem(key, el.checked ? '1' : '0');
+        else localStorage.setItem(key, el.value);
+        flashSaved();
+        // Propagate to other matching fields
+        document.querySelectorAll('[data-shared="' + el.dataset.shared + '"]').forEach(other => {
+          if (other === el) return;
+          if (other.type === 'checkbox' || other.type === 'radio') other.checked = el.checked;
+          else other.value = el.value;
+        });
+      } catch(e){}
+    });
+  });
+}
+syncAllDataShared();
+
+function resetParticipantInfo(){
+  if (!confirm('Clear all participant information AND signatures? This cannot be undone.')) return;
+  document.querySelectorAll('[data-shared]').forEach(el => {
+    const key = PREFIX + el.dataset.shared;
+    try { localStorage.removeItem(key); } catch(e){}
+    if (el.type === 'checkbox' || el.type === 'radio') el.checked = false;
+    else el.value = '';
+  });
+  if (typeof _clearAllSignatures === 'function') _clearAllSignatures();
+}
+
+
+// ====================================================================
+// SIGNATURE CAPTURE — pad logic + modal handlers (sigSlot helper above)
+// ====================================================================
+const SIG_PREFIX = 'odc_sig_';
+let _sigPad = null;
+let _activeSigId = null;
+
+function _initSigPad(){
+  const canvas = document.getElementById('sigCanvas');
+  const ratio = Math.max(window.devicePixelRatio || 1, 1);
+  canvas.width = canvas.offsetWidth * ratio;
+  canvas.height = canvas.offsetHeight * ratio;
+  canvas.getContext('2d').scale(ratio, ratio);
+  if (_sigPad) _sigPad.off();
+  _sigPad = new SignaturePad(canvas, {
+    backgroundColor: 'rgba(255,255,255,0)',
+    penColor: '#1a4f8a',
+    minWidth: 0.8, maxWidth: 2.2,
+  });
+}
+window.openSigModal = function(id, label){
+  _activeSigId = id;
+  document.getElementById('sigModalTitle').textContent = '✍️ ' + (label || 'Sign here');
+  document.getElementById('sigModalBackdrop').classList.add('show');
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => {
+    _initSigPad();
+    const slot = document.querySelector('[data-sigid="' + id + '"]');
+    const img = slot ? slot.querySelector('img') : null;
+    if (img && img.dataset.url) _sigPad.fromDataURL(img.dataset.url);
+    // Show/hide Remove button based on whether this slot has a signature
+    const rmBtn = document.getElementById('sigRemoveBtn');
+    if (rmBtn) rmBtn.style.display = (img && img.dataset.url) ? 'inline-block' : 'none';
+  }, 30);
+};
+window.closeSigModal = function(){
+  document.getElementById('sigModalBackdrop').classList.remove('show');
+  document.body.style.overflow = '';
+  _activeSigId = null;
+};
+window.clearSig = function(){ if (_sigPad) _sigPad.clear(); };
+
+// Apply current drawing to ONE slot
+window.applySig = function(){
+  if (!_sigPad || _sigPad.isEmpty()) {
+    alert('Please draw a signature first.');
+    return;
+  }
+  const dataUrl = _sigPad.toDataURL('image/png');
+  _setSlotSignature(_activeSigId, dataUrl);
+  closeSigModal();
+};
+
+// Apply current drawing to ALL signature slots in the page
+window.applySigToAll = function(){
+  if (!_sigPad || _sigPad.isEmpty()) {
+    alert('Please draw a signature first.');
+    return;
+  }
+  const slots = document.querySelectorAll('[data-sigid]');
+  if (slots.length === 0) { alert('No signature slots found.'); return; }
+  if (!confirm('Apply this signature to ALL ' + slots.length + ' signature slots? (You can clear individual ones later by hovering and clicking the × button.)')) return;
+  const dataUrl = _sigPad.toDataURL('image/png');
+  slots.forEach(slot => _setSlotSignature(slot.dataset.sigid, dataUrl));
+  closeSigModal();
+};
+
+// Remove signature from the currently-active slot (called from modal Remove button)
+window.removeSigFromSlot = function(){
+  if (!_activeSigId) return;
+  if (!confirm('Remove this signature?')) return;
+  _clearSlotSignature(_activeSigId);
+  closeSigModal();
+};
+
+// Tiny no-op helper that triggers autosave whenever signatures change.
+function _sigChanged(){ if (typeof autoSaveDebounced === 'function') autoSaveDebounced(); }
+
+// Internal: set/clear signature on a slot by id
+function _setSlotSignature(id, dataUrl){
+  const slot = document.querySelector('[data-sigid="' + id + '"]');
+  if (!slot) return;
+  slot.classList.add('applied');
+  slot.innerHTML = `<img src="${dataUrl}" data-url="${dataUrl}" alt="Signature"><span class="sig-clear-x no-print" onclick="event.stopPropagation(); _clearSlotSignature('${id}');" title="Remove signature">×</span>`;
+  try { localStorage.setItem(SIG_PREFIX + id, dataUrl); } catch(e){}
+  _sigChanged();
+}
+window._clearSlotSignature = function(id){
+  const slot = document.querySelector('[data-sigid="' + id + '"]');
+  if (!slot) return;
+  slot.classList.remove('applied');
+  slot.innerHTML = '<span class="sig-hint">Click to sign</span>';
+  try { localStorage.removeItem(SIG_PREFIX + id); } catch(e){}
+  _sigChanged();
+};
+
+// Restore signatures from localStorage after forms are rendered
+function restoreSignatures(){
+  document.querySelectorAll('[data-sigid]').forEach(slot => {
+    const id = slot.dataset.sigid;
+    try {
+      const dataUrl = localStorage.getItem(SIG_PREFIX + id);
+      if (dataUrl) _setSlotSignature(id, dataUrl);
+    } catch(e){}
+  });
+}
+restoreSignatures();
+
+// Resize canvas if window resized while modal is open
+window.addEventListener('resize', () => {
+  if (document.getElementById('sigModalBackdrop').classList.contains('show')) {
+    const data = (_sigPad && !_sigPad.isEmpty()) ? _sigPad.toDataURL() : null;
+    _initSigPad();
+    if (data) _sigPad.fromDataURL(data);
+  }
+});
+
+// Clear-all-signatures helper (called when participant info is reset)
+function _clearAllSignatures(){
+  document.querySelectorAll('[data-sigid]').forEach(slot => {
+    const id = slot.dataset.sigid;
+    try { localStorage.removeItem(SIG_PREFIX + id); } catch(e){}
+    slot.classList.remove('applied');
+    slot.innerHTML = '<span class="sig-hint">Click to sign</span>';
+  });
+}
+
+// ====================================================================
+// PRINT MULTIPLE FORMS — choose which forms, then print together
+// ====================================================================
+function openPrintAllModal(){
+  const list = document.getElementById('printAllList');
+  list.innerHTML = '';
+  FORMS.forEach(f => {
+    const lbl = document.createElement('label');
+    lbl.style.cssText = 'display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--odc-border); border-radius:6px; cursor:pointer; font-size:.92rem; background:#fafdf6;';
+    lbl.innerHTML = `<input type="checkbox" class="pa-pick" data-target="${f.id}" checked style="width:16px; height:16px; accent-color:var(--odc-green);"><span style="flex:1;">${f.label.replace(/^[^\w]+\s*/, '')}</span>`;
+    list.appendChild(lbl);
+  });
+  document.getElementById('printAllBackdrop').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+function closePrintAllModal(){
+  document.getElementById('printAllBackdrop').style.display = 'none';
+  document.body.style.overflow = '';
+}
+function printSelectedForms(){
+  const checks = document.querySelectorAll('.pa-pick:checked');
+  if (checks.length === 0) { alert('Please select at least one form to print.'); return; }
+  const ids = Array.from(checks).map(c => c.dataset.target);
+  const allSecs = Array.from(document.querySelectorAll('.form-section'));
+  // Save original active state
+  const wasActive = allSecs.find(s => s.classList.contains('active'));
+  // Make ALL selected forms visible at once for print
+  allSecs.forEach(s => {
+    const id = s.id.replace('form-', '');
+    s.classList.toggle('active', ids.includes(id));
+  });
+  // Force a page-break between forms during print
+  document.querySelectorAll('.form-section.active').forEach((s, i, arr) => {
+    if (i > 0) s.style.pageBreakBefore = 'always';
+  });
+  closePrintAllModal();
+  setTimeout(() => {
+    window.print();
+    // Restore after print
+    setTimeout(() => {
+      allSecs.forEach(s => { s.style.pageBreakBefore = ''; s.classList.remove('active'); });
+      if (wasActive) wasActive.classList.add('active');
+    }, 300);
+  }, 80);
+}
+
+// ====================================================================
+// SAVE / RESUME PROGRESS
+// Two paths:
+//   ① localStorage — auto-saved continuously; survives tab close
+//   ② shareable URL — encoded snapshot in #s= hash for cross-device transfer
+// ====================================================================
+const SAVE_KEY = 'odc_all_forms_save_v2';
+// One-time cleanup: the v1 save format is incompatible with the new form structure
+// (sections 6–10 were added, which shifted positional indexes — old data would land
+// in the wrong inputs and produce "0" prefills in text boxes). Wipe v1 + its sigs +
+// the data-shared keys (odc_shared_*) which may also carry stale "0" values that
+// conflict between checkbox-typed and text-typed fields sharing the same key.
+try {
+  if (localStorage.getItem('odc_all_forms_save_v1') || localStorage.getItem('odc_all_forms_migrated_v2') !== '1') {
+    localStorage.removeItem('odc_all_forms_save_v1');
+    Object.keys(localStorage).forEach(k => {
+      if (k.startsWith('odc_sig_') || k.startsWith('odc_shared_')) {
+        try { localStorage.removeItem(k); } catch(e){}
+      }
+    });
+    localStorage.setItem('odc_all_forms_migrated_v2', '1');
+    console.log('[migrate] cleared v1 save + signatures + shared fields (form structure changed).');
+  }
+} catch(e){}
+// Also: any data-shared value that's exactly "0" was almost certainly written by an
+// old checkbox sharing a key with a text input — strip them defensively on load.
+try {
+  Object.keys(localStorage).forEach(k => {
+    if (k.startsWith('odc_shared_') && localStorage.getItem(k) === '0') localStorage.removeItem(k);
+  });
+} catch(e){}
+
+// Collect all input values across all forms (skip nav/modal UI controls)
+function _collectAllValues(){
+  const out = [];
+  const inputs = document.querySelectorAll('input, select, textarea');
+  inputs.forEach(el => {
+    if (el.closest('#navBar') || el.closest('#printAllBackdrop') || el.closest('#saveBackdrop')) return;
+    if (el.classList.contains('pa-pick')) return;
+    if (el.tagName === 'INPUT' && (el.type === 'button' || el.type === 'submit' || el.type === 'file')) return;
+    if (el.type === 'checkbox' || el.type === 'radio') out.push(el.checked ? 1 : 0);
+    else out.push(el.value || '');
+  });
+  return out;
+}
+// Collect every signature slot's current dataURL (the one painted into the <img data-url="">)
+function _collectSignatures(){
+  const sigs = {};
+  document.querySelectorAll('[data-sigid]').forEach(slot => {
+    const id = slot.dataset.sigid;
+    const img = slot.querySelector('img[data-url]');
+    if (img && img.dataset.url) sigs[id] = img.dataset.url;
+  });
+  return sigs;
+}
+function _collectFull(){ return { v: _collectAllValues(), sigs: _collectSignatures() }; }
+function _restoreAllValues(arr){
+  const inputs = Array.from(document.querySelectorAll('input, select, textarea')).filter(el => {
+    if (el.closest('#navBar') || el.closest('#printAllBackdrop') || el.closest('#saveBackdrop')) return false;
+    if (el.classList.contains('pa-pick')) return false;
+    if (el.tagName === 'INPUT' && (el.type === 'button' || el.type === 'submit' || el.type === 'file')) return false;
+    return true;
+  });
+  const n = Math.min(arr.length, inputs.length);
+  for (let i = 0; i < n; i++) {
+    const el = inputs[i];
+    if (el.type === 'checkbox' || el.type === 'radio') el.checked = (arr[i] === 1);
+    else el.value = arr[i] == null ? '' : String(arr[i]);
+  }
+}
+// Restore signatures from a {slotId: dataUrl} map — paints them into slots using existing helper
+function _restoreSignatures(sigs){
+  if (!sigs || typeof sigs !== 'object') return;
+  Object.keys(sigs).forEach(id => {
+    const dataUrl = sigs[id];
+    if (dataUrl) {
+      // Use _setSlotSignature but bypass _sigChanged loop while restoring (set localStorage too — the helper already does)
+      _setSlotSignature(id, dataUrl);
+    }
+  });
+}
+// Floating restore-toast (top-right)
+function _showRestoreToast(msg, isWarn){
+  const t = document.createElement('div');
+  t.className = 'no-print';
+  t.style.cssText = 'position:fixed; top:14px; right:14px; max-width:340px; padding:12px 16px; border-radius:8px; box-shadow:0 6px 20px rgba(0,0,0,0.18); z-index:10001; font-size:.86rem; line-height:1.45;';
+  if (isWarn) { t.style.background = '#fef7f3'; t.style.border = '1px solid #d99656'; t.style.color = '#7a4a1a'; }
+  else        { t.style.background = '#eef9ea'; t.style.border = '1px solid #4a7a3c'; t.style.color = '#2f4a2a'; }
+  t.innerHTML = msg + ' <button onclick="this.parentNode.remove()" style="float:right; background:none; border:none; cursor:pointer; font-size:1.1rem; padding:0 0 0 8px; color:inherit;">&times;</button>';
+  document.body.appendChild(t);
+  if (!isWarn) setTimeout(() => { try { t.remove(); } catch(e){} }, 6000);
+}
+
+// Auto-save on any input — captures form values + signatures
+let _saveTimer = null;
+function autoSaveDebounced(){
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(() => {
+    try {
+      const full = _collectFull();
+      const data = { values: full.v, sigs: full.sigs, savedAt: new Date().toISOString() };
+      localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+    } catch(e){}
+  }, 600);
+}
+document.addEventListener('input', autoSaveDebounced);
+document.addEventListener('change', autoSaveDebounced);
+
+// ── Unified restore on page load ──
+// Priority: URL hash (#s=...) wins over localStorage. Backward-compat: old saves
+// were a flat array (just form values, no signatures); new saves are {v, sigs}.
+function loadSavedData(){
+  let arr = null, sigs = null, source = '', isLegacy = false;
+  const h = location.hash;
+  if (h && h.indexOf('#s=') === 0) {
+    try {
+      const b64 = h.slice(3);
+      const json = decodeURIComponent(escape(atob(b64)));
+      const parsed = JSON.parse(json);
+      if (Array.isArray(parsed)) { arr = parsed; source = 'shareable link (legacy)'; isLegacy = true; }
+      else if (parsed && Array.isArray(parsed.v)) { arr = parsed.v; sigs = parsed.sigs || null; source = 'shareable link'; }
+    } catch(e){ console.warn('Hash restore failed:', e); }
+  }
+  if (!arr) {
+    try {
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (raw) {
+        const data = JSON.parse(raw);
+        if (data && Array.isArray(data.values)) { arr = data.values; sigs = data.sigs || null; source = 'this browser'; }
+      }
+    } catch(e){ console.warn('localStorage restore failed:', e); }
+  }
+  if (!arr) return;
+  // Defer until forms are rendered + signatures restored
+  setTimeout(() => {
+    _restoreAllValues(arr);
+    if (sigs) _restoreSignatures(sigs);
+    const sigCount = sigs ? Object.keys(sigs).length : 0;
+    console.log('Restored from:', source, '·', arr.length, 'fields ·', sigCount, 'signatures');
+    if (isLegacy) {
+      _showRestoreToast('⚠ <strong>Legacy save link</strong> — only form data restored (' + arr.length + ' fields).<br>Signatures were not embedded in this old link. Re-sign and click <strong>💾 Save → 🔗 Generate Link</strong> to make a new link with signatures.', true);
+    } else if (source) {
+      _showRestoreToast(`✓ Restored from ${source} — <strong>${arr.length}</strong> fields, <strong>${sigCount}</strong> signature(s).`, false);
+    }
+    // If restored from hash, also write to localStorage so subsequent edits auto-save
+    if (source.indexOf('shareable link') === 0) {
+      try { localStorage.setItem(SAVE_KEY, JSON.stringify({ values: arr, sigs: sigs, savedAt: new Date().toISOString() })); } catch(e){}
+    }
+  }, 500);
+}
+loadSavedData();
+
+// Modal interactions
+function openSaveModal(){
+  document.getElementById('saveBackdrop').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  // Show last saved time
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (raw) {
+      const data = JSON.parse(raw);
+      if (data.savedAt) {
+        const d = new Date(data.savedAt);
+        document.getElementById('lastSavedAt').textContent = 'Last saved: ' + d.toLocaleString();
+      }
+    } else {
+      document.getElementById('lastSavedAt').textContent = '(no saved data yet)';
+    }
+  } catch(e){}
+  // Pre-fill share URL box
+  document.getElementById('shareUrlBox').value = '';
+  document.getElementById('shareUrlSize').textContent = '';
+  // Show signature status so user can verify before generating link
+  const sigs = _collectSignatures();
+  const sigCount = Object.keys(sigs).length;
+  const box = document.getElementById('sigStatusInModal');
+  const txt = document.getElementById('sigStatusCount');
+  if (sigCount === 0) {
+    box.style.background = '#fef7f3'; box.style.borderColor = '#d99656'; box.style.color = '#7a4a1a';
+    txt.innerHTML = '<strong>0</strong> — click any "Click to sign" slot in the forms to draw a signature, then come back here.';
+  } else {
+    box.style.background = '#eaf3ff'; box.style.borderColor = '#6b9bd1'; box.style.color = '#1a4a7a';
+    txt.innerHTML = `<strong>${sigCount}</strong> signature(s) on this page — these will be included in saves &amp; links.`;
+  }
+}
+function closeSaveModal(){
+  document.getElementById('saveBackdrop').style.display = 'none';
+  document.body.style.overflow = '';
+}
+function manualSave(){
+  try {
+    const full = _collectFull();
+    const data = { values: full.v, sigs: full.sigs, savedAt: new Date().toISOString() };
+    localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+    document.getElementById('lastSavedAt').textContent = 'Last saved: ' + new Date(data.savedAt).toLocaleString();
+    flashSaved();
+  } catch(e){ alert('Save failed: ' + e.message); }
+}
+function clearLocalSave(){
+  try { localStorage.removeItem(SAVE_KEY); } catch(e){}
+  // Also wipe ALL related keys: signatures, data-shared values, legacy v1, migration flag, picks.
+  Object.keys(localStorage).forEach(k => {
+    if (k.startsWith(SIG_PREFIX) || k.startsWith(PREFIX)
+        || k === 'odc_all_forms_save_v1' || k === 'odc_all_forms_migrated_v2'
+        || k === 'odc_all_forms_picks_v1') {
+      try { localStorage.removeItem(k); } catch(e){}
+    }
+  });
+  // Also clear any values currently typed into the visible inputs so the user
+  // sees an empty form even without reloading.
+  try {
+    document.querySelectorAll('input, select, textarea').forEach(el => {
+      if (el.closest('#navBar') || el.closest('#printAllBackdrop') || el.closest('#saveBackdrop')) return;
+      if (el.classList.contains('pa-pick')) return;
+      if (el.classList.contains('fp-pick')) return;
+      if (el.tagName === 'INPUT' && (el.type === 'button' || el.type === 'submit' || el.type === 'file')) return;
+      if (el.type === 'checkbox' || el.type === 'radio') el.checked = false;
+      else el.value = '';
+    });
+    document.querySelectorAll('[data-sigid]').forEach(slot => {
+      slot.classList.remove('applied');
+      slot.innerHTML = '<span class="sig-hint">Click to sign</span>';
+    });
+  } catch(e){}
+  const lab = document.getElementById('lastSavedAt');
+  if (lab) lab.textContent = '(cleared)';
+}
+
+// Clear-everything helper used by visible UI buttons (nav bar + intro panel)
+window.clearAllAndReload = function(reload){
+  const msg = reload
+    ? 'Clear ALL information in this browser?\n\n• Form data\n• Signatures\n• Saved progress\n• Form picks\n\nThe page will then reload to a fresh, empty state.\n\nThis cannot be undone.'
+    : 'Clear ALL information in this browser?\n\n• Form data\n• Signatures\n• Saved progress\n\nThe page will NOT reload — the form will simply be emptied.\n\nThis cannot be undone.';
+  if (!confirm(msg)) return;
+  clearLocalSave();
+  if (reload) {
+    // Strip any #s= hash so we don't immediately re-restore from URL
+    location.hash = '';
+    setTimeout(() => location.reload(), 50);
+  } else {
+    alert('✓ All data cleared.');
+  }
+};
+function generateShareUrl(){
+  const full = _collectFull();
+  const payload = { v: full.v, sigs: full.sigs };
+  const json = JSON.stringify(payload);
+  const b64 = btoa(unescape(encodeURIComponent(json)));
+  const url = location.protocol + '//' + location.host + location.pathname + '#s=' + b64;
+  const box = document.getElementById('shareUrlBox');
+  box.value = url;
+  const sigCount = Object.keys(full.sigs).length;
+  const filledCount = full.v.filter(v => v !== '' && v !== 0).length;
+  const sizeEl = document.getElementById('shareUrlSize');
+  if (sigCount === 0) {
+    sizeEl.innerHTML = `<span style="color:#a64b2a; font-weight:600;">⚠ NO signatures in this link.</span> Click any 'Click to sign' slot to draw, then re-generate. · Link length: ${url.length} chars · ${filledCount} fields with data`;
+  } else {
+    sizeEl.innerHTML = `<span style="color:#2f4a2a; font-weight:600;">✓ Link includes ${sigCount} signature(s).</span> · Link length: ${url.length} chars · ${filledCount} fields with data`;
+  }
+  if (url.length > 8000) {
+    sizeEl.innerHTML += '<br><span style="color:#a64b2a;">⚠ Very long URL (' + url.length + ' chars) — some chat apps may truncate. Prefer the Email button.</span>';
+  }
+  // email link
+  const subject = encodeURIComponent('ODC Onboarding Forms — Saved Progress');
+  const body = encodeURIComponent('Open this link to continue your saved forms:\n\n' + url);
+  document.getElementById('emailShareLink').href = 'mailto:?subject=' + subject + '&body=' + body;
+  setTimeout(() => box.select(), 50);
+}
+function copyShareUrl(){
+  const box = document.getElementById('shareUrlBox');
+  if (!box.value) { generateShareUrl(); }
+  box.select();
+  try {
+    navigator.clipboard.writeText(box.value).then(() => {
+      const btn = event.target;
+      const orig = btn.textContent;
+      btn.textContent = '✓ Copied!';
+      setTimeout(() => { btn.textContent = orig; }, 1500);
+    });
+  } catch(e) {
+    document.execCommand('copy');
+    alert('Link copied.');
+  }
+}
+
+// ESC closes either modal
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (document.getElementById('saveBackdrop').style.display === 'flex') closeSaveModal();
+    if (document.getElementById('printAllBackdrop').style.display === 'flex') closePrintAllModal();
+  }
+});
+</script>
+
+</body>
+</html>
