@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>One Dream Community – Client Information Form</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+  :root {
+    --odc-green: #4a7a3c;
+    --odc-light-green: #f4faf3;
+    --odc-border: #d9dfcc;
+    --ink: #1a2017;
+  }
+  * { box-sizing: border-box; }
+  body { background:#f4f6ee; color:var(--ink); font-family:"Helvetica Neue","Segoe UI",Arial,sans-serif; line-height:1.55; padding:0; margin:0; }
+  .app-header { display:flex; align-items:center; gap:14px; padding:14px 28px; border-bottom:1px solid var(--odc-border); background:#fff; }
+  .app-header img { height:42px; width:auto; display:block; }
+  .app-header h1 { font-size:1.05rem; margin:0; color:var(--odc-green); font-weight:700; }
+  .app-header small { color:#888; font-size:.78rem; letter-spacing:0.05em; text-transform:uppercase; }
+  .top-actions { padding:14px 28px; background:#fff; border-bottom:1px solid var(--odc-border); display:flex; justify-content:flex-end; gap:8px; }
+  .doc-card { max-width: 980px; margin: 24px auto; background:#fff; border:1px solid var(--odc-border); border-radius:10px; box-shadow: 0 1px 2px rgba(26,32,23,.04), 0 8px 24px -8px rgba(26,32,23,.08); }
+  .doc-body { padding: 24px 32px 28px 32px; }
+
+  /* Cover */
+  .doc-cover { text-align:center; padding:18px 0 14px 0; margin:0 0 18px 0; border-bottom:2px solid var(--odc-green); }
+  .doc-cover-logo img { height:60px; width:auto; display:block; margin:0 auto; }
+  .doc-cover-title { font-size:1.35rem; font-weight:800; color:#122; margin-top:10px; letter-spacing:0.4px; }
+  .doc-cover-subtitle { font-size:.92rem; color:#555; margin-top:4px; font-style:italic; }
+  .doc-cover-version { font-size:.78rem; color:#777; margin-top:6px; letter-spacing:0.6px; text-transform:uppercase; }
+
+  /* Sections */
+  .doc-section-h { font-size:1rem; font-weight:700; color:var(--odc-green); margin:18px 0 8px 0; padding-bottom:4px; border-bottom:1.2pt solid var(--odc-green); letter-spacing:0.2px; }
+  .sub-h { font-size:.88rem; font-weight:700; color:#1d4a23; margin:14px 0 6px 0; }
+
+  /* Generic data table */
+  .data-table { width:100%; border-collapse:collapse; margin-bottom:14px; font-size:.88rem; }
+  .data-table td, .data-table th { border:1px solid #d6d6d0; padding:6px 9px; vertical-align:top; }
+  .data-table .lbl { background:#f6f6f1; font-weight:600; color:#333; width:18%; white-space:nowrap; }
+  .data-table input[type="text"], .data-table input[type="date"], .data-table input[type="email"], .data-table input[type="tel"], .data-table input[type="number"] {
+    width:100%; border:none; background:transparent; outline:none; font-size:.88rem; padding:2px 0; border-bottom:1px dashed #aaa;
+  }
+  .data-table textarea { width:100%; border:1px solid #d6d6d0; background:#fafdf6; outline:none; font-size:.88rem; padding:6px 8px; min-height:60px; resize:vertical; font-family:inherit; }
+
+  /* Checkbox / radio styling */
+  .opts { display:flex; gap:18px; flex-wrap:wrap; align-items:center; padding:2px 0; }
+  .opts label { display:inline-flex; align-items:center; gap:8px; cursor:pointer; user-select:none; font-size:.88rem; }
+  .opts input[type="checkbox"], .opts input[type="radio"] { width:16px; height:16px; accent-color:var(--odc-green); margin:0; flex-shrink:0; }
+
+  .yn-inline { display:inline-flex; gap:14px; align-items:center; }
+  .yn-inline label { display:inline-flex; gap:5px; align-items:center; cursor:pointer; font-size:.86rem; }
+  .yn-inline input { accent-color:var(--odc-green); }
+
+  /* Notes about the form */
+  .note { font-size:.8rem; color:#888; font-style:italic; margin:-4px 0 8px 0; }
+
+  /* Print modal */
+  .print-modal-backdrop { display:none; position:fixed; inset:0; background:rgba(20,30,20,0.55); z-index:9999; align-items:center; justify-content:center; padding:20px; backdrop-filter:blur(2px); }
+  .print-modal-backdrop.show { display:flex; }
+  .print-modal-card { background:#fff; border-radius:10px; max-width:420px; width:100%; padding:24px 26px; box-shadow:0 18px 50px rgba(0,0,0,0.25); }
+  .print-modal-card h3 { margin:0 0 6px 0; font-size:1.1rem; color:var(--odc-green); }
+  .print-modal-card p { color:#666; font-size:.87rem; margin:0 0 16px 0; }
+  .print-modal-actions { display:flex; justify-content:flex-end; gap:8px; padding-top:12px; border-top:1px solid #eee; }
+  .btn-odc { background:var(--odc-green); color:#fff; border:1px solid var(--odc-green); }
+  .btn-odc:hover { background:#3a6230; color:#fff; }
+  .btn-odc-outline { background:transparent; color:var(--odc-green); border:1px solid var(--odc-green); }
+  .btn-odc-outline:hover { background:var(--odc-light-green); }
+
+  /* Print rules */
+  @media print {
+    @page { size: A4; margin: 14mm 12mm; }
+    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    .no-print, .app-header, .top-actions, .print-modal-backdrop { display:none !important; }
+    body { background:#fff; font-size:10pt; line-height:1.4; color:#000; }
+    .doc-card { box-shadow:none; border:none; margin:0; padding:0; max-width:100%; border-radius:0; }
+    .doc-body { padding:0; }
+    .doc-section-h { page-break-after:avoid; break-after:avoid; font-size:11.5pt !important; }
+    .doc-section-h + * { page-break-before:avoid; break-before:avoid; }
+    table { page-break-inside:auto; }
+    tr { page-break-inside:avoid; break-inside:avoid; }
+    thead { display:table-header-group; }
+    input[type="text"], input[type="date"], input[type="email"], input[type="tel"], input[type="number"], textarea {
+      border:none !important; border-bottom:1px solid #1a4f8a !important; background:transparent !important; color:#000 !important; padding:1px 2px !important;
+    }
+    input::placeholder, textarea::placeholder { color:transparent !important; }
+    .doc-cover { padding:12pt 0 10pt 0 !important; margin-bottom:14pt !important; border-bottom:2pt solid var(--odc-green) !important; }
+    .doc-cover-logo img { height:42pt !important; }
+    .doc-cover-title { font-size:16pt !important; margin-top:8pt !important; }
+    .doc-cover-version { font-size:8pt !important; color:#666 !important; }
+    .data-table td, .data-table th { padding:4pt 6pt !important; font-size:9.5pt !important; }
+  }
+</style>
+</head>
+<body>
+
+<header class="app-header no-print">
+  <img src="logo_300.png" alt="One Dream Community" style="height:42px;width:auto;display:block;">
+  <div>
+    <h1>One Dream Community</h1>
+    <small>Client Information Form · v0.1 MAY 2024</small>
+  </div>
+</header>
+
+<div class="top-actions no-print">
+  <button class="btn btn-odc btn-sm" onclick="openPrintModal()">🖨️ Print Document</button>
+</div>
+
+<div class="doc-card" id="doc-client-info">
+  <div class="doc-body">
+
+    <!-- Cover -->
+    <div class="doc-cover">
+      <div class="doc-cover-logo">
+        <img src="logo_300.png" alt="One Dream Community" style="height:60px;width:auto;display:block;margin:0 auto;">
+      </div>
+      <div class="doc-cover-title">Client Information Form</div>
+      <div class="doc-cover-subtitle">One Dream Community Care Service</div>
+      <div class="doc-cover-version">Document 0 · v0.1 · MAY 2024</div>
+    </div>
+
+    <!-- Coordinator + Client basic info -->
+    <table class="data-table">
+      <tr>
+        <td class="lbl">Coordinator Name</td><td><input type="text" data-shared="p_officer"></td>
+        <td class="lbl">Date</td><td><input type="date" data-shared="p_docDate"></td>
+      </tr>
+      <tr>
+        <td class="lbl">Client Name</td><td><input type="text" data-shared="p_name"></td>
+        <td class="lbl">Sex</td>
+        <td>
+          <div class="opts">
+            <label><input type="checkbox"> Male</label>
+            <label><input type="checkbox"> Female</label>
+            <label><input type="checkbox"> Other</label>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="lbl">Client's Contact No.</td><td><input type="tel" data-shared="p_mobile"></td>
+        <td class="lbl">NOK Name</td><td><input type="text" data-shared="p_nokName"></td>
+      </tr>
+      <tr>
+        <td class="lbl">NOK Contact No.</td><td><input type="tel" data-shared="p_nokPhone"></td>
+        <td class="lbl">Relationship to Client</td><td><input type="text" data-shared="p_nokRel"></td>
+      </tr>
+    </table>
+
+    <!-- Other family members -->
+    <div class="sub-h">Other Family Members</div>
+    <table class="data-table">
+      <thead>
+        <tr style="background:#eaf2e6;"><th>Name</th><th>Contact No.</th><th>Name</th><th>Contact No.</th></tr>
+      </thead>
+      <tr>
+        <td><input type="text"></td><td><input type="tel"></td>
+        <td><input type="text"></td><td><input type="tel"></td>
+      </tr>
+      <tr>
+        <td><input type="text"></td><td><input type="tel"></td>
+        <td><input type="text"></td><td><input type="tel"></td>
+      </tr>
+    </table>
+
+    <!-- Address & Residence -->
+    <div class="doc-section-h">Address &amp; Residence</div>
+    <table class="data-table">
+      <tr>
+        <td class="lbl">Address</td><td colspan="3"><input type="text" data-shared="p_street" placeholder="Street, Suburb, State, Postcode"></td>
+      </tr>
+      <tr>
+        <td class="lbl">Tenure</td>
+        <td colspan="3">
+          <div class="opts">
+            <label><input type="checkbox"> Own</label>
+            <label><input type="checkbox"> Rented</label>
+            <label><input type="checkbox"> Shared</label>
+            <label><input type="checkbox"> Government</label>
+            <label><input type="checkbox"> Other:</label>
+            <input type="text" style="border:none; border-bottom:1px dashed #aaa; flex:1; min-width:120px;">
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="lbl">Residential Type</td>
+        <td colspan="3">
+          <div class="opts">
+            <label><input type="checkbox"> House</label>
+            <label><input type="checkbox"> Unit / APT</label>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="lbl">Stairs</td>
+        <td>
+          <div class="yn-inline">
+            <label><input type="radio" name="stairs"> Yes</label>
+            <label><input type="radio" name="stairs"> No</label>
+          </div>
+        </td>
+        <td class="lbl">If yes, how many?</td>
+        <td><input type="text"></td>
+      </tr>
+      <tr>
+        <td class="lbl">Garden</td>
+        <td>
+          <div class="opts">
+            <label><input type="checkbox"> With Garden</label>
+            <label><input type="checkbox"> No Garden</label>
+          </div>
+        </td>
+        <td class="lbl">Stories</td>
+        <td>
+          <div class="opts">
+            <label><input type="checkbox"> Single Story</label>
+            <label><input type="checkbox"> Double Story</label>
+          </div>
+        </td>
+      </tr>
+    </table>
+
+    <!-- Government / Health IDs -->
+    <div class="doc-section-h">Government &amp; Health IDs</div>
+    <table class="data-table">
+      <tr>
+        <td class="lbl">Medicare No.</td><td><input type="text" data-shared="p_medicare"></td>
+        <td class="lbl">Pension No.</td><td><input type="text" data-shared="p_pension"></td>
+      </tr>
+    </table>
+
+    <!-- GP & Medical Centre -->
+    <div class="doc-section-h">GP &amp; Medical Centre</div>
+    <table class="data-table">
+      <tr>
+        <td class="lbl">Name of GP</td><td colspan="3"><input type="text" data-shared="p_gpName"></td>
+      </tr>
+      <tr>
+        <td class="lbl">Medical Centre</td><td><input type="text" data-shared="p_medCentre"></td>
+        <td class="lbl">Contact No.</td><td><input type="tel" data-shared="p_medCentrePhone"></td>
+      </tr>
+      <tr>
+        <td class="lbl">Health Summary Ready to Submit?</td>
+        <td colspan="3">
+          <div class="yn-inline">
+            <label><input type="radio" name="healthSummary"> Yes</label>
+            <label><input type="radio" name="healthSummary"> No</label>
+          </div>
+        </td>
+      </tr>
+    </table>
+
+    <!-- 1. Personal Choice and Preference -->
+    <div class="doc-section-h">1. Personal Choice and Preference (for general care)</div>
+    <table class="data-table">
+      <tr><td class="lbl">Preferred Name</td><td><input type="text" data-shared="p_prefName"></td></tr>
+    </table>
+
+    <!-- 2. Aids & Equipment -->
+    <div class="doc-section-h">2. Aids &amp; Equipment</div>
+
+    <div class="sub-h">Visual Aid</div>
+    <div class="opts" style="margin-bottom:10px;">
+      <div class="yn-inline">
+        <label><input type="radio" name="visualAid"> Yes</label>
+        <label><input type="radio" name="visualAid"> No</label>
+      </div>
+      <span style="font-size:.85rem; color:#666;">If yes:</span>
+      <label><input type="checkbox"> Reading Glasses</label>
+      <label><input type="checkbox"> Normal Glasses</label>
+    </div>
+
+    <div class="sub-h">Hearing Aid</div>
+    <div class="opts" style="margin-bottom:10px;">
+      <div class="yn-inline">
+        <label><input type="radio" name="hearingAid"> Yes</label>
+        <label><input type="radio" name="hearingAid"> No</label>
+      </div>
+      <span style="font-size:.85rem; color:#666;">If yes:</span>
+      <label><input type="checkbox"> Right</label>
+      <label><input type="checkbox"> Left</label>
+    </div>
+
+    <div class="sub-h">Denture</div>
+    <div class="opts" style="margin-bottom:10px;">
+      <span style="font-size:.85rem; color:#666;">Full:</span>
+      <label><input type="checkbox"> Upper</label>
+      <label><input type="checkbox"> Lower</label>
+      <span style="font-size:.85rem; color:#666; margin-left:14px;">Partial:</span>
+      <label><input type="checkbox"> Upper</label>
+      <label><input type="checkbox"> Lower</label>
+    </div>
+
+    <div class="sub-h">Mobility Aid</div>
+    <table class="data-table">
+      <tr>
+        <td colspan="4">
+          <div class="opts">
+            <label><input type="checkbox"> Stick</label>
+            <label><input type="checkbox"> Walker (4 Wheels)</label>
+            <label><input type="checkbox"> Wheelchair</label>
+            <label><input type="checkbox"> No Aid Required</label>
+            <label><input type="checkbox"> Independent</label>
+            <label><input type="checkbox"> Bedbound</label>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="lbl">Reason (if no aid)</td><td colspan="3"><input type="text"></td>
+      </tr>
+      <tr>
+        <td class="lbl">Air Mattress</td>
+        <td><div class="yn-inline"><label><input type="radio" name="airM"> Yes</label><label><input type="radio" name="airM"> No</label></div></td>
+        <td class="lbl">Shower Chair</td>
+        <td><div class="yn-inline"><label><input type="radio" name="showerC"> Yes</label><label><input type="radio" name="showerC"> No</label></div></td>
+      </tr>
+      <tr>
+        <td class="lbl">Continence Aid</td>
+        <td><div class="yn-inline"><label><input type="radio" name="contAid"> Yes</label><label><input type="radio" name="contAid"> No</label></div></td>
+        <td class="lbl">If no, required?</td>
+        <td><input type="text"></td>
+      </tr>
+      <tr>
+        <td class="lbl">Lifter</td>
+        <td colspan="3">
+          <div class="opts">
+            <label><input type="checkbox"> Stand up</label>
+            <label><input type="checkbox"> Full Hoist</label>
+            <label><input type="checkbox"> Other:</label>
+            <input type="text" style="border:none; border-bottom:1px dashed #aaa; flex:1; min-width:120px;">
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="lbl">Urinal Bottle</td>
+        <td><div class="yn-inline"><label><input type="radio" name="urinal"> Yes</label><label><input type="radio" name="urinal"> No</label></div></td>
+        <td class="lbl">CAPS Funding</td>
+        <td><div class="yn-inline"><label><input type="radio" name="caps"> Yes</label><label><input type="radio" name="caps"> No</label></div></td>
+      </tr>
+    </table>
+
+    <!-- 3. History of Falls -->
+    <div class="doc-section-h">3. History of Falls</div>
+    <table class="data-table">
+      <tr>
+        <td class="lbl">Within a year?</td>
+        <td><div class="yn-inline"><label><input type="radio" name="fallsYr"> Yes</label><label><input type="radio" name="fallsYr"> No</label></div></td>
+        <td class="lbl">Within last 3 months?</td>
+        <td><div class="yn-inline"><label><input type="radio" name="falls3m"> Yes</label><label><input type="radio" name="falls3m"> No</label></div></td>
+      </tr>
+    </table>
+
+    <!-- 4. Recent Hospital Transfer -->
+    <div class="doc-section-h">4. Recent Hospital Transfer</div>
+    <table class="data-table">
+      <tr>
+        <td class="lbl">Recent Transfer?</td>
+        <td><div class="yn-inline"><label><input type="radio" name="hosp"> Yes</label><label><input type="radio" name="hosp"> No</label></div></td>
+        <td class="lbl">Date</td>
+        <td><input type="date"></td>
+      </tr>
+    </table>
+
+    <!-- 5. Supplement Drink -->
+    <div class="doc-section-h">5. Supplement Drink</div>
+    <div class="opts" style="margin-bottom:14px;">
+      <label><input type="checkbox"> No</label>
+      <label><input type="checkbox"> Ensure</label>
+      <label><input type="checkbox"> Forticip</label>
+      <label><input type="checkbox"> Souvenaid</label>
+      <label><input type="checkbox"> Other:</label>
+      <input type="text" style="border:none; border-bottom:1px dashed #aaa; flex:1; min-width:120px;">
+    </div>
+
+    <!-- 6. Allied Health -->
+    <div class="doc-section-h">6. Allied Health</div>
+    <div class="opts" style="margin-bottom:14px;">
+      <label><input type="checkbox"> Physiotherapy</label>
+      <label><input type="checkbox"> Podiatrist</label>
+      <label><input type="checkbox"> Speech Pathologist</label>
+      <label><input type="checkbox"> Dietician</label>
+      <label><input type="checkbox"> Other:</label>
+      <input type="text" style="border:none; border-bottom:1px dashed #aaa; flex:1; min-width:120px;">
+    </div>
+
+    <!-- 7. Social Life -->
+    <div class="doc-section-h">7. Social Life</div>
+    <table class="data-table">
+      <tr>
+        <td class="lbl">Active Social Life?</td>
+        <td><div class="yn-inline"><label><input type="radio" name="social"> Yes</label><label><input type="radio" name="social"> No</label></div></td>
+        <td class="lbl">Details</td>
+        <td><input type="text"></td>
+      </tr>
+    </table>
+
+    <!-- 8-10. Home Safety / Modification / OT -->
+    <div class="doc-section-h">8 – 10. Home Safety, Modification &amp; OT</div>
+    <table class="data-table">
+      <tr>
+        <td class="lbl">Home Safety Issues</td>
+        <td><div class="yn-inline"><label><input type="radio" name="hSafety"> Yes</label><label><input type="radio" name="hSafety"> No</label></div></td>
+        <td class="lbl">Modification Required</td>
+        <td><div class="yn-inline"><label><input type="radio" name="hMod"> Yes</label><label><input type="radio" name="hMod"> No</label></div></td>
+      </tr>
+      <tr>
+        <td class="lbl">OT Review Required</td>
+        <td colspan="3"><div class="yn-inline"><label><input type="radio" name="otR"> Yes</label><label><input type="radio" name="otR"> No</label></div></td>
+      </tr>
+      <tr>
+        <td class="lbl">If yes, details</td>
+        <td colspan="3"><textarea placeholder="Details..."></textarea></td>
+      </tr>
+    </table>
+
+    <!-- 11. Physical Ability Status -->
+    <div class="doc-section-h">11. Physical Ability Status (IADLs)</div>
+    <table class="data-table">
+      <thead>
+        <tr style="background:#eaf2e6;"><th>Activity</th><th>Independent?</th><th>If no, required:</th></tr>
+      </thead>
+      <tr>
+        <td class="lbl" style="width:25%;">Shopping</td>
+        <td style="width:20%;"><div class="yn-inline"><label><input type="radio" name="shop"> Yes</label><label><input type="radio" name="shop"> No</label></div></td>
+        <td><input type="text" placeholder="Assistance details..."></td>
+      </tr>
+      <tr>
+        <td class="lbl">Cleaning</td>
+        <td><div class="yn-inline"><label><input type="radio" name="clean"> Yes</label><label><input type="radio" name="clean"> No</label></div></td>
+        <td><input type="text"></td>
+      </tr>
+      <tr>
+        <td class="lbl">Cooking</td>
+        <td><div class="yn-inline"><label><input type="radio" name="cook"> Yes</label><label><input type="radio" name="cook"> No</label></div></td>
+        <td><input type="text"></td>
+      </tr>
+      <tr>
+        <td class="lbl">Gardening</td>
+        <td>
+          <div class="opts">
+            <label><input type="radio" name="garden"> Yes</label>
+            <label><input type="radio" name="garden"> No</label>
+            <label><input type="radio" name="garden"> N/A</label>
+          </div>
+        </td>
+        <td><input type="text"></td>
+      </tr>
+      <tr>
+        <td class="lbl">Driving Licence</td>
+        <td><div class="yn-inline"><label><input type="radio" name="driv"> Yes</label><label><input type="radio" name="driv"> No</label></div></td>
+        <td class="lbl">Transport Service Required</td>
+      </tr>
+      <tr>
+        <td colspan="2">&nbsp;</td>
+        <td><div class="yn-inline"><label><input type="radio" name="tx"> Yes</label><label><input type="radio" name="tx"> No</label></div></td>
+      </tr>
+    </table>
+
+    <!-- 12. Nursing Care Needs -->
+    <div class="doc-section-h">12. Nursing Care Needs</div>
+    <table class="data-table">
+      <tr>
+        <td class="lbl">Wound</td>
+        <td><div class="yn-inline"><label><input type="radio" name="wound"> Yes</label><label><input type="radio" name="wound"> No</label></div></td>
+        <td class="lbl">Stoma</td>
+        <td><div class="yn-inline"><label><input type="radio" name="stoma"> Yes</label><label><input type="radio" name="stoma"> No</label></div></td>
+      </tr>
+      <tr>
+        <td class="lbl">Catheter</td>
+        <td colspan="3">
+          <div class="opts">
+            <label><input type="radio" name="cath"> Yes</label>
+            <label><input type="radio" name="cath"> No</label>
+            <span style="font-size:.85rem; color:#666; margin-left:14px;">If yes:</span>
+            <label><input type="checkbox"> IDC</label>
+            <label><input type="checkbox"> SPC</label>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="lbl">Medication Storage</td>
+        <td colspan="3">
+          <div class="opts">
+            <label><input type="checkbox"> Webster Pak</label>
+            <label><input type="checkbox"> Dosette Box</label>
+            <label><input type="checkbox"> Original Packaging</label>
+            <label><input type="checkbox"> Other:</label>
+            <input type="text" style="border:none; border-bottom:1px dashed #aaa; flex:1; min-width:120px;">
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="lbl">Smoking</td>
+        <td><div class="yn-inline"><label><input type="radio" name="smoke"> Yes</label><label><input type="radio" name="smoke"> No</label></div></td>
+        <td class="lbl">Drinking</td>
+        <td><div class="yn-inline"><label><input type="radio" name="drink"> Yes</label><label><input type="radio" name="drink"> No</label></div></td>
+      </tr>
+    </table>
+
+    <!-- Memo -->
+    <div class="doc-section-h">Memo / Other Notes</div>
+    <table class="data-table">
+      <tr><td><textarea placeholder="Additional notes..." style="min-height:120px;"></textarea></td></tr>
+    </table>
+
+  </div>
+</div>
+
+<!-- Print Modal -->
+<div class="print-modal-backdrop no-print" id="printModalBackdrop" onclick="if(event.target===this)closePrintModal()">
+  <div class="print-modal-card" role="dialog" aria-modal="true">
+    <h3>🖨️ Print Client Information Form</h3>
+    <p>The completed form will be printed on A4. Use your browser's <strong>Save as PDF</strong> option in the print dialog if you need a digital copy.</p>
+    <div class="print-modal-actions">
+      <button class="btn btn-odc-outline btn-sm" onclick="closePrintModal()">Cancel</button>
+      <button class="btn btn-odc btn-sm" onclick="closePrintModal();setTimeout(()=>window.print(),60);">🖨️ Print Now</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function openPrintModal(){ document.getElementById('printModalBackdrop').classList.add('show'); document.body.style.overflow='hidden'; }
+function closePrintModal(){ document.getElementById('printModalBackdrop').classList.remove('show'); document.body.style.overflow=''; }
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.getElementById('printModalBackdrop').classList.contains('show')) closePrintModal();
+});
+</script>
+
+
+<!-- ── Workflow: Next Document link (uses ?wfq= queue + ?wfp= position + ?wfb= base URL) ── -->
+<div id="wfNextBanner" class="no-print" style="display:none; position:fixed; bottom:24px; right:24px; z-index:9998;">
+  <div style="background:#fff; border:1.5px solid #4a7a3c; border-radius:12px; padding:12px 16px; box-shadow:0 8px 24px rgba(0,0,0,0.18); display:flex; align-items:center; gap:12px; max-width:360px;">
+    <div style="font-size:.82rem; color:#444; line-height:1.4;">
+      <strong style="color:#4a7a3c;">Done with this form?</strong><br>
+      <span id="wfNextLabel" style="color:#666;">Move on to the next document.</span>
+    </div>
+    <a id="wfNextLink" href="#" target="_blank" rel="noopener" style="background:#4a7a3c; color:#fff; border:none; padding:10px 18px; border-radius:8px; font-size:.88rem; font-weight:600; cursor:pointer; white-space:nowrap; flex-shrink:0; text-decoration:none; display:inline-block;">Next →</a>
+  </div>
+</div>
+<script>
+(function(){
+  // wfq = pipe-separated RELATIVE URLs (each URL-encoded once)
+  // wfb = launcher base URL (so we can resolve queue items via URL constructor)
+  // wfp = current zero-based position
+  var _params = new URLSearchParams(window.location.search);
+  var _wfq   = _params.get('wfq');
+  var _wfb   = _params.get('wfb');
+  var _wfp   = parseInt(_params.get('wfp') || '0', 10);
+  var _queue = [];
+  if (_wfq) {
+    try { _queue = _wfq.split('|').map(function(p){ return decodeURIComponent(p); }); }
+    catch(e) { _queue = []; }
+  }
+  var _hasNext = _queue.length > 0 && _wfp + 1 < _queue.length;
+
+  function _resolveUrl(relUrl) {
+    // Prefer URL constructor with the launcher's base for accurate resolution.
+    if (_wfb) {
+      try { return new URL(relUrl, _wfb).href; } catch(e) {}
+    }
+    // Fallback: resolve against current document
+    try { return new URL(relUrl, document.baseURI).href; } catch(e) {}
+    return relUrl;
+  }
+
+  function _buildNextHref() {
+    if (!_hasNext) return '#';
+    var nextAbs = _resolveUrl(_queue[_wfp + 1]);
+    var sep = nextAbs.indexOf('?') === -1 ? '?' : '&';
+    var url = nextAbs + sep + 'wfq=' + encodeURIComponent(_wfq) + '&wfp=' + (_wfp + 1);
+    if (_wfb) url += '&wfb=' + encodeURIComponent(_wfb);
+    return url;
+  }
+
+  function showBanner() {
+    if (!_hasNext) return;
+    var b = document.getElementById('wfNextBanner');
+    if (!b) return;
+    b.style.display = 'block';
+    var lbl = document.getElementById('wfNextLabel');
+    if (lbl) {
+      var totalLeft = _queue.length - _wfp - 1;
+      lbl.textContent = totalLeft === 1
+        ? 'Open the last document in your workflow.'
+        : 'Open the next document (' + totalLeft + ' more after this one).';
+    }
+    var link = document.getElementById('wfNextLink');
+    if (link) link.href = _buildNextHref();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', showBanner);
+  else showBanner();
+
+  // Backwards-compatible function (some code may still call it)
+  window.goToNextDoc = function(){
+    if (!_hasNext) return;
+    var url = _buildNextHref();
+    var win = window.open(url, '_blank');
+    if (!win) window.location.href = url;
+  };
+})();
+</script>
+
+
+<!-- ── Save / Resume Progress ── -->
+<div id="wfSaveBtn" class="no-print" style="position:fixed; bottom:24px; left:24px; z-index:9997;">
+  <button onclick="openSaveModal()" style="background:#fff; color:#4a7a3c; border:1.5px solid #4a7a3c; padding:10px 16px; border-radius:8px; font-size:.85rem; font-weight:600; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.1);">💾 Save Progress</button>
+</div>
+
+<div id="wfSaveModal" class="no-print" style="display:none; position:fixed; inset:0; background:rgba(20,30,20,0.55); z-index:10000; align-items:center; justify-content:center; padding:20px;">
+  <div style="background:#fff; border-radius:10px; max-width:560px; width:100%; padding:22px 26px; box-shadow:0 18px 50px rgba(0,0,0,0.25);">
+    <h3 style="margin:0 0 6px 0; font-size:1.1rem; color:#4a7a3c;">💾 Save Your Progress</h3>
+    <p style="color:#666; font-size:.87rem; margin:0 0 12px 0;">Copy or email this link. Opening it later will restore everything you've entered on this form.</p>
+    <textarea id="wfSaveUrlBox" readonly style="width:100%; min-height:90px; border:1px solid #d6d6d0; padding:8px 10px; font-size:.78rem; font-family:monospace; word-break:break-all; background:#fafdf6; resize:vertical;"></textarea>
+    <div id="wfSaveSize" style="font-size:.75rem; color:#888; margin-top:4px;"></div>
+    <div style="display:flex; justify-content:space-between; gap:8px; margin-top:14px; padding-top:12px; border-top:1px solid #eee;">
+      <div style="display:flex; gap:6px;">
+        <button onclick="copySaveUrl()" style="background:#4a7a3c; color:#fff; border:none; padding:8px 14px; border-radius:6px; font-size:.85rem; font-weight:600; cursor:pointer;">📋 Copy Link</button>
+        <a id="wfEmailLink" href="#" style="background:#fff; color:#4a7a3c; border:1px solid #4a7a3c; padding:7px 14px; border-radius:6px; font-size:.85rem; font-weight:600; cursor:pointer; text-decoration:none;">✉️ Email Link</a>
+      </div>
+      <button onclick="closeSaveModal()" style="background:transparent; color:#666; border:1px solid #ccc; padding:8px 14px; border-radius:6px; font-size:.85rem; cursor:pointer;">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // ── Pick form inputs to serialize (exclude UI controls) ──
+  function _formInputs() {
+    return Array.from(document.querySelectorAll('input, select, textarea')).filter(function(el){
+      // Skip elements that live inside non-printable UI overlays / panels
+      if (el.closest('#wfNextBanner') || el.closest('#wfSaveBtn') || el.closest('#wfSaveModal')) return false;
+      if (el.closest('.print-modal-backdrop') || el.closest('.sig-modal-backdrop')) return false;
+      // Exclude buttons that have type="text" placeholder etc — only standard inputs
+      if (el.tagName === 'INPUT' && (el.type === 'button' || el.type === 'submit' || el.type === 'file')) return false;
+      // Skip the launcher print picker checkboxes (used in bundled index.html)
+      if (el.classList.contains('docpick')) return false;
+      // Skip workflow-sig canvas etc
+      return true;
+    });
+  }
+
+  function _collect() {
+    var arr = [];
+    _formInputs().forEach(function(el){
+      if (el.type === 'checkbox' || el.type === 'radio') arr.push(el.checked ? 1 : 0);
+      else arr.push(el.value || '');
+    });
+    return arr;
+  }
+
+  function _restore(arr) {
+    var inputs = _formInputs();
+    var n = Math.min(arr.length, inputs.length);
+    for (var i = 0; i < n; i++) {
+      var el = inputs[i];
+      if (el.type === 'checkbox' || el.type === 'radio') {
+        el.checked = (arr[i] === 1 || arr[i] === true);
+        try { el.dispatchEvent(new Event('change', {bubbles:true})); } catch(e){}
+      } else {
+        el.value = arr[i] == null ? '' : String(arr[i]);
+        try { el.dispatchEvent(new Event('input', {bubbles:true})); } catch(e){}
+        try { el.dispatchEvent(new Event('change', {bubbles:true})); } catch(e){}
+      }
+    }
+  }
+
+  // ── Unicode-safe base64 ──
+  function _b64encode(str){ return btoa(unescape(encodeURIComponent(str))); }
+  function _b64decode(b64){ try { return decodeURIComponent(escape(atob(b64))); } catch(e){ return null; } }
+
+  // ── Save modal ──
+  window.openSaveModal = function(){
+    var arr = _collect();
+    var json = JSON.stringify(arr);
+    var b64 = _b64encode(json);
+    // Strip existing hash, keep search (so workflow params preserved)
+    var url = location.protocol + '//' + location.host + location.pathname + location.search + '#s=' + b64;
+    var box = document.getElementById('wfSaveUrlBox');
+    box.value = url;
+    var sz = document.getElementById('wfSaveSize');
+    sz.textContent = 'Link length: ' + url.length + ' chars · ' + arr.filter(function(x){return x !== '' && x !== 0;}).length + ' fields filled';
+    // Email link
+    var subject = encodeURIComponent('ODC Form Progress – ' + (document.title || 'Saved Form'));
+    var body = encodeURIComponent('Open this link in your browser to continue the saved form:\n\n' + url);
+    document.getElementById('wfEmailLink').href = 'mailto:?subject=' + subject + '&body=' + body;
+    document.getElementById('wfSaveModal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    setTimeout(function(){ box.select(); }, 50);
+  };
+  window.closeSaveModal = function(){
+    document.getElementById('wfSaveModal').style.display = 'none';
+    document.body.style.overflow = '';
+  };
+  window.copySaveUrl = function(){
+    var box = document.getElementById('wfSaveUrlBox');
+    box.select();
+    try {
+      navigator.clipboard.writeText(box.value).then(function(){
+        var btn = event.target;
+        var orig = btn.textContent;
+        btn.textContent = '✓ Copied!';
+        setTimeout(function(){ btn.textContent = orig; }, 1500);
+      });
+    } catch(e) {
+      document.execCommand('copy');
+      alert('Link copied to clipboard.');
+    }
+  };
+
+  // ── Restore on load ──
+  function tryRestore(){
+    var hash = location.hash;
+    if (!hash || hash.indexOf('#s=') !== 0) return;
+    var b64 = hash.slice(3);
+    var json = _b64decode(b64);
+    if (!json) return;
+    try {
+      var arr = JSON.parse(json);
+      // Defer until after the page-specific JS has rendered any dynamic rows
+      setTimeout(function(){ _restore(arr); }, 400);
+    } catch(e) { console.warn('Failed to restore form state:', e); }
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', tryRestore);
+  else tryRestore();
+
+  // Close modal on ESC
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape' && document.getElementById('wfSaveModal').style.display === 'flex') closeSaveModal();
+  });
+})();
+</script>
+
+
+<!-- ── Cross-form Participant Info auto-fill (reads from launcher's localStorage) ── -->
+<script>
+(function(){
+  var PREFIX = 'odc_shared_';
+  function fillField(el) {
+    var key = PREFIX + el.getAttribute('data-shared');
+    try {
+      var v = localStorage.getItem(key);
+      if (v === null) return;
+      if (el.type === 'checkbox' || el.type === 'radio') {
+        el.checked = (v === '1');
+      } else {
+        el.value = v;
+      }
+      try { el.dispatchEvent(new Event('input', {bubbles:true})); } catch(e){}
+      try { el.dispatchEvent(new Event('change', {bubbles:true})); } catch(e){}
+    } catch(e){}
+  }
+  function bindSave(el) {
+    var key = PREFIX + el.getAttribute('data-shared');
+    var evt = (el.type === 'checkbox' || el.type === 'radio') ? 'change' : 'input';
+    el.addEventListener(evt, function(){
+      try {
+        if (el.type === 'checkbox' || el.type === 'radio') localStorage.setItem(key, el.checked ? '1' : '0');
+        else localStorage.setItem(key, el.value);
+      } catch(e){}
+    });
+  }
+  function processAll() {
+    document.querySelectorAll('[data-shared]').forEach(function(el){
+      fillField(el);
+      bindSave(el);
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ setTimeout(processAll, 50); });
+  else setTimeout(processAll, 50);
+  // Re-run after page-specific JS finishes generating dynamic rows
+  setTimeout(processAll, 600);
+})();
+</script>
+
+
+<!-- ── Auto-print when ?print=1 in URL ── -->
+<script>
+(function(){
+  if (new URLSearchParams(window.location.search).get('print') === '1') {
+    function doPrint(){
+      try { window.focus(); } catch(e){}
+      setTimeout(function(){ window.print(); }, 500);
+    }
+    if (document.readyState === 'complete') doPrint();
+    else window.addEventListener('load', doPrint);
+  }
+})();
+</script>
+
+</body>
+</html>
