@@ -7,6 +7,25 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
+<!-- Microsoft Authentication Library (MSAL) — load with multi-CDN fallback. -->
+<script>
+  window.__msalLoaded = false;
+  window.__msalLoadError = null;
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/msal-browser/2.38.3/msal-browser.min.js"
+        onload="window.__msalLoaded = true;"
+        onerror="window.__msalLoadError = 'cdnjs failed';"></script>
+<script>
+  if (!window.__msalLoaded && typeof msal === 'undefined') {
+    var _msalFallback = document.createElement('script');
+    _msalFallback.src = 'https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.3/lib/msal-browser.min.js';
+    _msalFallback.onload = function() { window.__msalLoaded = true; };
+    _msalFallback.onerror = function() {
+      window.__msalLoadError = (window.__msalLoadError || '') + ', jsdelivr failed';
+    };
+    document.head.appendChild(_msalFallback);
+  }
+</script>
 <style>
   :root {
     --odc-green: #4a7a3c;
@@ -297,12 +316,205 @@
 </head>
 <body>
 
+<!-- ═══════════════════════════════════════════════════════════
+     LOGIN GATE OVERLAY — covers the whole app until signed in
+     ═══════════════════════════════════════════════════════════ -->
+<style>
+  #loginGate {
+    position: fixed; inset: 0; z-index: 99999;
+    background: linear-gradient(135deg, #eaf2e6 0%, #f0f4ee 100%);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    padding: 20px;
+  }
+  #loginGate .gate-card {
+    background: #fff; border: 1px solid #c8dfc2;
+    border-radius: 14px; padding: 36px 40px; max-width: 460px; width: 100%;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.08);
+    text-align: center;
+  }
+  #loginGate .gate-logo { height: 64px; width: auto; margin-bottom: 14px; }
+  #loginGate .gate-badge {
+    display: inline-block; padding: 4px 11px;
+    background: #e7f0e2; color: #2f4a2a;
+    border-radius: 999px; font-size: 11px; font-weight: 600;
+    margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.7px;
+  }
+  #loginGate h1 { font-size: 22px; margin: 0 0 4px 0; color: #1a2017; font-weight: 700; }
+  #loginGate .gate-sub { color: #6f7a6a; font-size: 14px; margin: 0 0 24px 0; line-height: 1.5; }
+  #loginGate .gate-btn {
+    background: #4a7a3c; color: #fff; border: none;
+    padding: 12px 28px; border-radius: 6px;
+    font: inherit; font-size: 15px; font-weight: 600;
+    cursor: pointer; transition: background .15s;
+  }
+  #loginGate .gate-btn:hover { background: #2f4a2a; }
+  #loginGate .gate-btn:disabled { background: #aaa; cursor: not-allowed; }
+  #loginGate .gate-btn .ms-logo {
+    display: inline-block; width: 16px; height: 16px;
+    margin-right: 8px; vertical-align: middle;
+    background:
+      linear-gradient(45deg, #f25022 0 50%, #7fba00 50% 100%) top left / 50% 50% no-repeat,
+      linear-gradient(45deg, #00a4ef 0 50%, #ffb900 50% 100%) bottom right / 50% 50% no-repeat;
+  }
+  #loginGate .gate-status { margin-top: 16px; font-size: 13px; color: #828a7c; min-height: 20px; }
+  #loginGate .gate-status.error { color: #b85a3a; }
+  #loginGate .gate-signed-in { margin-top: 12px; font-size: 13px; color: #444c40; }
+  #loginGate .gate-help {
+    margin-top: 20px; padding-top: 16px; border-top: 1px solid #eee;
+    font-size: 12px; color: #828a7c; line-height: 1.6;
+  }
+  #loginGate .gate-skip {
+    margin-top: 14px; font-size: 12px;
+  }
+  #loginGate .gate-skip button {
+    background: none; border: none; color: #828a7c;
+    text-decoration: underline; cursor: pointer; font-size: 12px;
+  }
+  body.pdf-rendering #loginGate,
+  body.pdf-rendering #clientPicker { display: none !important; }
+</style>
+<div id="loginGate">
+  <div class="gate-card">
+    <img src="logo_300.png" alt="One Dream Community" class="gate-logo" onerror="this.style.display='none'">
+    <div class="gate-badge">Cloud · Secure Sign-in</div>
+    <h1>One Dream Community</h1>
+    <p class="gate-sub">All Onboarding Forms — Single-page version<br>
+      Sign in with your ODC Microsoft 365 account to continue.</p>
+    <button class="gate-btn" id="gateLoginBtn" disabled>
+      <span class="ms-logo"></span>Sign in with Microsoft 365
+    </button>
+    <div class="gate-status" id="gateStatus">Loading authentication library…</div>
+    <div class="gate-signed-in" id="gateSignedIn" style="display:none;"></div>
+    <div class="gate-skip">
+      <button onclick="document.getElementById('loginGate').style.display='none';" title="Use without signing in (browser-only save)">Continue without signing in →</button>
+    </div>
+    <div class="gate-help">
+      Trouble signing in? Hard-refresh the page (<strong>Cmd + Shift + R</strong>) and try again.<br>
+      Contact the admin (Hayley): y.hr3752@gmail.com
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     CLIENT PICKER — shown after login, lists saved forms
+     ═══════════════════════════════════════════════════════════ -->
+<style>
+  #clientPicker {
+    position: fixed; inset: 0; z-index: 99998;
+    background: linear-gradient(135deg, #eaf2e6 0%, #f0f4ee 100%);
+    display: none; align-items: flex-start; justify-content: center;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    padding: 28px 20px; overflow-y: auto;
+  }
+  #clientPicker.active { display: flex; }
+  #clientPicker .picker-card {
+    background: #fff; border: 1px solid #c8dfc2;
+    border-radius: 14px; padding: 28px 32px; max-width: 760px; width: 100%;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.08);
+  }
+  #clientPicker .picker-head {
+    display: flex; align-items: center; gap: 14px;
+    padding-bottom: 16px; border-bottom: 1px solid #eaf0e6;
+  }
+  #clientPicker .picker-head img { height: 48px; }
+  #clientPicker .picker-head h2 { margin: 0; font-size: 1.25rem; color: #1a2017; font-weight: 700; }
+  #clientPicker .picker-head small { color: #828a7c; font-size: .82rem; }
+  #clientPicker .picker-user { margin-left: auto; font-size: .8rem; color: #5d6957; text-align: right; }
+  #clientPicker .picker-user button {
+    background: none; border: none; color: #a64b2a; font-size: .76rem;
+    cursor: pointer; padding: 4px 8px; margin-top: 2px;
+  }
+  #clientPicker .picker-actions {
+    display: flex; gap: 10px; margin: 18px 0;
+    flex-wrap: wrap; align-items: center;
+  }
+  #clientPicker .btn-new {
+    background: #4a7c3f; color: #fff; border: none;
+    padding: 11px 22px; border-radius: 6px;
+    font: inherit; font-size: .92rem; font-weight: 600;
+    cursor: pointer; transition: background .15s;
+  }
+  #clientPicker .btn-new:hover { background: #3a6330; }
+  #clientPicker .btn-refresh {
+    background: #fff; color: #4a7c3f;
+    border: 1.5px solid #c8dfc2; padding: 9px 16px;
+    border-radius: 6px; font: inherit; font-size: .85rem; font-weight: 600;
+    cursor: pointer; margin-left: auto;
+  }
+  #clientPicker .btn-refresh:hover { background: #f4f9ee; }
+  #clientPicker .picker-list-title { font-weight: 700; color: #2f4a2a; font-size: .92rem; margin: 4px 0 10px; }
+  #clientPicker .picker-list { border: 1px solid #eaf0e6; border-radius: 8px; max-height: 50vh; overflow-y: auto; }
+  #clientPicker .picker-row {
+    padding: 12px 16px; border-bottom: 1px solid #f0f4ee;
+    display: flex; align-items: center; gap: 12px;
+    cursor: pointer; transition: background .12s;
+  }
+  #clientPicker .picker-row:last-child { border-bottom: none; }
+  #clientPicker .picker-row:hover { background: #f8fbf5; }
+  #clientPicker .picker-row .row-main { flex: 1; min-width: 0; }
+  #clientPicker .picker-row .row-title { font-weight: 600; color: #1a4f8a; font-size: .9rem; word-break: break-all; line-height: 1.35; }
+  #clientPicker .picker-row .row-meta { font-size: .76rem; color: #828a7c; margin-top: 2px; }
+  #clientPicker .picker-row .row-saved-by { color: #1a5fa0; font-weight: 500; }
+  #clientPicker .picker-row .row-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  #clientPicker .picker-row .btn-open {
+    background: #4a7c3f; color: #fff; border: none;
+    padding: 6px 14px; border-radius: 5px;
+    font: inherit; font-size: .78rem; font-weight: 600; cursor: pointer;
+  }
+  #clientPicker .picker-row .btn-open:hover { background: #3a6330; }
+  #clientPicker .picker-row .btn-del {
+    background: #fff; color: #a64b2a;
+    border: 1px solid #d0a090; padding: 5px 10px;
+    border-radius: 5px; font: inherit; font-size: .76rem; cursor: pointer;
+  }
+  #clientPicker .picker-row .btn-del:hover { background: #fff3f3; }
+  #clientPicker .picker-empty { padding: 26px 18px; text-align: center; color: #828a7c; font-size: .87rem; line-height: 1.5; }
+  #clientPicker .picker-status { margin-top: 12px; padding: 10px 14px; border-radius: 6px; font-size: .82rem; }
+  #clientPicker .picker-status.error { background: #fef3ef; border: 1px solid #d99656; color: #7a4a1a; }
+  #clientPicker .picker-status.info { background: #eaf3ff; border: 1px solid #6b9bd1; color: #1a4a7a; }
+  #clientPicker .picker-close-x {
+    background: none; border: none; color: #828a7c; cursor: pointer;
+    font-size: 1.4rem; padding: 0 8px; align-self: flex-start;
+  }
+</style>
+<div id="clientPicker">
+  <div class="picker-card">
+    <div class="picker-head">
+      <img src="logo_300.png" alt="One Dream Community" onerror="this.style.display='none'">
+      <div>
+        <h2>Onboarding — Choose a record</h2>
+        <small>Open a saved form or start a new one</small>
+      </div>
+      <div class="picker-user">
+        <div>Signed in as <strong id="pickerUserName">…</strong></div>
+        <button onclick="spSignOut()">Sign out</button>
+      </div>
+      <button class="picker-close-x" onclick="pickerClose()" title="Close">&times;</button>
+    </div>
+
+    <div class="picker-actions">
+      <button class="btn-new" onclick="pickerStartNew()">+ Start New Form</button>
+      <button class="btn-refresh" onclick="pickerRefresh()">🔄 Refresh</button>
+    </div>
+
+    <div class="picker-list-title">
+      Saved forms (<span id="pickerCount">…</span>)
+    </div>
+    <div id="pickerList" class="picker-list">
+      <div class="picker-empty">Loading…</div>
+    </div>
+    <div id="pickerStatus"></div>
+  </div>
+</div>
+
 <div class="topbar">
   <img src="logo_300.png" alt="One Dream Community" onerror="this.style.display='none'">
-  <div>
+  <div style="flex:1;">
     <h1>One Dream Community</h1>
     <small>All Onboarding Forms · Single-page version</small>
   </div>
+  <button onclick="pickerOpen()" id="topbarClientsBtn" style="background:#4a7a3c; color:#fff; border:1px solid #2f4a2a; padding:7px 14px; border-radius:6px; font-weight:600; font-size:.85rem; cursor:pointer; transition:background .15s;" onmouseover="this.style.background='#2f4a2a'" onmouseout="this.style.background='#4a7a3c'">⇆ Clients</button>
 </div>
 
 <div class="nav-bar no-print" id="navBar">
@@ -383,6 +595,22 @@
         <button class="btn-odc-outline" onclick="manualSave()" style="font-size:.82rem; padding:6px 12px;">✓ Save Now</button>
         <button class="btn-odc-outline" onclick="if(confirm('Clear all saved progress in this browser?')) clearLocalSave()" style="font-size:.82rem; padding:6px 12px; color:#a64b2a; border-color:#d0a090;">🗑 Clear Saved</button>
         <span id="lastSavedAt" style="font-size:.78rem; color:#888; align-self:center; margin-left:auto;"></span>
+      </div>
+    </div>
+
+    <div style="border:1px solid #6b9bd1; border-radius:8px; padding:14px; margin-bottom:12px; background:#f4f9ff;">
+      <div style="font-weight:700; color:#1a4a7a; margin-bottom:6px; font-size:.95rem;">☁️ Save to SharePoint (cloud — recommended)</div>
+      <p style="font-size:.82rem; color:#445a72; margin:0 0 10px 0;">Save to the team SharePoint folder so any teammate can open it from another device. Uses your ODC Microsoft 365 account.</p>
+      <div id="spSignedOut" style="display:none;">
+        <button onclick="spSignIn()" style="background:#0078d4; color:#fff; border:none; padding:8px 14px; border-radius:6px; font-size:.85rem; font-weight:600; cursor:pointer;">🔐 Sign in with Microsoft 365</button>
+      </div>
+      <div id="spSignedIn" style="display:none;">
+        <div style="font-size:.78rem; color:#5d6957; margin-bottom:8px;">Signed in as <strong id="spUserInfo">…</strong></div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button onclick="saveToSharePoint()" style="background:#0078d4; color:#fff; border:none; padding:8px 14px; border-radius:6px; font-size:.85rem; font-weight:600; cursor:pointer;">☁️ Save to Cloud</button>
+          <button onclick="pickerOpen()" style="background:#fff; color:#1a4a7a; border:1.5px solid #6b9bd1; padding:7px 12px; border-radius:6px; font-size:.85rem; font-weight:600; cursor:pointer;">📂 Open Saved Forms</button>
+          <button onclick="spSignOut()" style="background:none; color:#a64b2a; border:none; font-size:.78rem; cursor:pointer; align-self:center; margin-left:auto;">Sign out</button>
+        </div>
       </div>
     </div>
 
@@ -1795,8 +2023,514 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     if (document.getElementById('saveBackdrop').style.display === 'flex') closeSaveModal();
     if (document.getElementById('printAllBackdrop').style.display === 'flex') closePrintAllModal();
+    if (document.getElementById('clientPicker').classList.contains('active')) pickerClose();
   }
 });
+
+// ════════════════════════════════════════════════════════════════════════
+// SHAREPOINT INTEGRATION (Microsoft Graph + MSAL.js)
+// Each user signs in with their own Microsoft 365 account; saves go to
+// /sites/AgedCareTeam622/Shared Documents/Service Agreement Records/
+// Onboarding files use prefix "ODC-Onboarding_" so they're filterable from
+// the contract files (which use "ODC-Agreement_").
+// ════════════════════════════════════════════════════════════════════════
+const SP_CONFIG = {
+  clientId: '7c1eb587-aeaf-43d9-855d-dba2ac0dc99d',
+  tenantId: '857e6685-dad1-41ac-b637-b3fa089eeea8',
+  redirectUri: window.location.origin + window.location.pathname,
+  spHost: 'onedreamcommunity.sharepoint.com',
+  spSitePath: '/sites/AgedCareTeam622',
+  spFolderPath: 'Service Agreement Records',
+  filePrefix: 'ODC-Onboarding_',
+  scopes: ['User.Read', 'Files.ReadWrite.All', 'Sites.ReadWrite.All']
+};
+
+let _msal = null;
+const _spCache = { siteId: null, driveId: null };
+
+function _spEscapeHtml(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+}
+function _spEncodePath(path){
+  return path.split('/').filter(x => x.length).map(encodeURIComponent).join('/');
+}
+
+let _spInitPromise = null;
+function _spInit(){
+  if (_spInitPromise) return _spInitPromise;
+  if (typeof msal === 'undefined') {
+    console.warn('[SP] MSAL library not loaded');
+    return Promise.resolve(null);
+  }
+  _msal = new msal.PublicClientApplication({
+    auth: {
+      clientId: SP_CONFIG.clientId,
+      authority: 'https://login.microsoftonline.com/' + SP_CONFIG.tenantId,
+      redirectUri: SP_CONFIG.redirectUri,
+      navigateToLoginRequestUrl: true
+    },
+    cache: { cacheLocation: 'localStorage', storeAuthStateInCookie: false }
+  });
+  _spInitPromise = (async () => {
+    if (typeof _msal.initialize === 'function') {
+      try { await _msal.initialize(); } catch(e){ console.warn('[SP] initialize:', e); }
+    }
+    try {
+      const result = await _msal.handleRedirectPromise();
+      if (result && result.account) _msal.setActiveAccount(result.account);
+    } catch(e) { console.error('[SP] handleRedirectPromise error:', e); }
+    const accs = _msal.getAllAccounts();
+    if (accs && accs.length && !_msal.getActiveAccount()) {
+      _msal.setActiveAccount(accs[0]);
+    }
+    _spUpdateUi();
+    return _msal;
+  })();
+  return _spInitPromise;
+}
+
+function _spCurrentAccount(){
+  if (!_msal) return null;
+  const accs = _msal.getAllAccounts();
+  return accs && accs.length ? accs[0] : null;
+}
+
+async function _spAcquireToken(){
+  if (_msal && typeof _msal.initialize === 'function') {
+    try { await _msal.initialize(); } catch(e){}
+  }
+  const account = _spCurrentAccount();
+  if (!account) throw new Error('Not signed in');
+  try {
+    const r = await _msal.acquireTokenSilent({ scopes: SP_CONFIG.scopes, account });
+    return r.accessToken;
+  } catch(e) {
+    if ((typeof msal !== 'undefined' && e instanceof msal.InteractionRequiredAuthError)
+        || /interaction_required|consent_required|login_required/i.test(e.message || '')) {
+      const r = await _msal.acquireTokenPopup({ scopes: SP_CONFIG.scopes, account });
+      return r.accessToken;
+    }
+    throw e;
+  }
+}
+
+async function _graph(url, opts){
+  const token = await _spAcquireToken();
+  const headers = Object.assign({}, (opts && opts.headers) || {}, { Authorization: 'Bearer ' + token });
+  const res = await fetch(url, Object.assign({}, opts || {}, { headers }));
+  if (!res.ok) {
+    let detail = '';
+    try { detail = await res.text(); } catch(e){}
+    throw new Error('Graph ' + res.status + ': ' + (detail.slice(0, 240) || res.statusText));
+  }
+  return res;
+}
+
+async function _spGetSiteId(){
+  if (_spCache.siteId) return _spCache.siteId;
+  const url = 'https://graph.microsoft.com/v1.0/sites/' + SP_CONFIG.spHost + ':' + SP_CONFIG.spSitePath;
+  const res = await _graph(url);
+  const data = await res.json();
+  _spCache.siteId = data.id;
+  return data.id;
+}
+async function _spGetDriveId(){
+  if (_spCache.driveId) return _spCache.driveId;
+  const siteId = await _spGetSiteId();
+  const res = await _graph('https://graph.microsoft.com/v1.0/sites/' + siteId + '/drive');
+  const data = await res.json();
+  _spCache.driveId = data.id;
+  return data.id;
+}
+function _spUserFolderName(){
+  const acc = _spCurrentAccount();
+  if (!acc) return 'unknown';
+  const upn = acc.username || acc.name || 'unknown';
+  return upn.split('@')[0].replace(/[\\/:*?"<>|#%&{}]/g, '_').slice(0, 60) || 'unknown';
+}
+async function _spEnsureBaseFolder(){
+  const driveId = await _spGetDriveId();
+  const baseUrl = 'https://graph.microsoft.com/v1.0/drives/' + driveId
+    + '/root:/' + _spEncodePath(SP_CONFIG.spFolderPath);
+  try { await _graph(baseUrl); return; }
+  catch(e) { if (!/Graph 404/.test(e.message)) throw e; }
+  await _graph('https://graph.microsoft.com/v1.0/drives/' + driveId + '/root/children', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: SP_CONFIG.spFolderPath, folder: {}, '@microsoft.graph.conflictBehavior': 'fail' })
+  });
+}
+
+window.spSignIn = async function(){
+  const instance = await _spInit();
+  if (!instance) {
+    alert('Failed to load Microsoft authentication library (MSAL). Refresh and try again.');
+    return;
+  }
+  try {
+    await instance.loginRedirect({ scopes: SP_CONFIG.scopes, prompt: 'select_account' });
+  } catch(e) {
+    console.error('[SP] sign-in failed:', e);
+    alert('Sign-in failed: ' + (e.message || e));
+  }
+};
+
+window.spSignOut = function(){
+  if (!_msal) return;
+  const account = _spCurrentAccount();
+  if (!account) { _spUpdateUi(); return; }
+  _spCache.siteId = null;
+  _spCache.driveId = null;
+  try { _msal.logoutRedirect({ account, postLogoutRedirectUri: SP_CONFIG.redirectUri }); }
+  catch(e){
+    try { _msal.clearCache(); } catch(e2){}
+    setTimeout(() => location.reload(), 100);
+  }
+};
+
+// Try to read the participant/client name from the Client Info section so the
+// SharePoint filename is human-readable. Falls back to "Untitled".
+function _spGetClientName(){
+  try {
+    // Prefer the data-shared p_name input (Client Name field)
+    const el = document.querySelector('[data-shared="p_name"]');
+    if (el && el.value) return el.value.trim();
+    // Fallback: localStorage shared key
+    const v = localStorage.getItem('odc_shared_p_name');
+    if (v) return v.trim();
+  } catch(e){}
+  return '';
+}
+
+window.saveToSharePoint = async function(){
+  // Show inline progress on the cloud-save button if we can find it
+  const btnList = document.querySelectorAll('button[onclick*="saveToSharePoint"]');
+  const btn = btnList && btnList.length ? btnList[0] : null;
+  const restoreBtn = btn ? btn.innerHTML : null;
+  if (btn) { btn.innerHTML = '☁️ Uploading…'; btn.disabled = true; }
+  try {
+    if (!_msal || !_spCurrentAccount()) {
+      await window.spSignIn();
+      if (!_spCurrentAccount()) {
+        if (btn) { btn.innerHTML = restoreBtn; btn.disabled = false; }
+        return;
+      }
+    }
+    await _spEnsureBaseFolder();
+    const driveId = await _spGetDriveId();
+    const savedBy = _spCurrentAccount().username || _spCurrentAccount().name;
+    const saverTag = _spUserFolderName();
+    const full = _collectFull();
+    const payload = {
+      app: 'ODC All Onboarding Forms',
+      version: 1,
+      savedAt: new Date().toISOString(),
+      savedBy: savedBy,
+      values: full.v,
+      sigs: full.sigs
+    };
+    const json = JSON.stringify(payload, null, 2);
+
+    // Filename: ODC-Onboarding_{ClientName}.json (overwrites for same client)
+    //           or ODC-Onboarding_Untitled-by-{user}.json (per-user draft)
+    let clientSlug = '';
+    const cName = _spGetClientName();
+    if (cName) {
+      clientSlug = cName.replace(/[\\/:*?"<>|#%&{}]/g, '').replace(/\s+/g, '-').slice(0, 60);
+    }
+    const filename = clientSlug
+      ? (SP_CONFIG.filePrefix + clientSlug + '.json')
+      : (SP_CONFIG.filePrefix + 'Untitled-by-' + saverTag + '.json');
+
+    const fullPath = SP_CONFIG.spFolderPath + '/' + filename;
+    const url = 'https://graph.microsoft.com/v1.0/drives/' + driveId
+      + '/root:/' + _spEncodePath(fullPath) + ':/content';
+    await _graph(url, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: json
+    });
+    const sigCount = full.sigs ? Object.keys(full.sigs).length : 0;
+    _showRestoreToast('✓ Saved to SharePoint — <strong>' + _spEscapeHtml(filename) + '</strong><br><small>' + full.v.length + ' fields · ' + sigCount + ' signature(s)</small>', false);
+    window.__currentPickerFile = { name: filename };
+    if (btn) {
+      btn.innerHTML = '✓ Saved!';
+      setTimeout(() => { btn.innerHTML = restoreBtn; btn.disabled = false; }, 1800);
+    }
+  } catch(e) {
+    console.error('[SP] save failed:', e);
+    _showRestoreToast('✗ Save failed: ' + _spEscapeHtml(e.message || String(e)), true);
+    if (btn) { btn.innerHTML = restoreBtn; btn.disabled = false; }
+  }
+};
+
+// ════════════════════════════════════════════════════════════════════════
+// CLIENT PICKER — shown right after login; lists every saved onboarding form
+// ════════════════════════════════════════════════════════════════════════
+function pickerSetStatus(msg, kind){
+  const el = document.getElementById('pickerStatus');
+  if (!el) return;
+  if (!msg) { el.innerHTML = ''; el.className = ''; return; }
+  el.className = 'picker-status ' + (kind || 'info');
+  el.textContent = msg;
+}
+
+window.pickerOpen = async function(){
+  const picker = document.getElementById('clientPicker');
+  if (!picker) return;
+  if (!_msal || !_spCurrentAccount()) {
+    const gate = document.getElementById('loginGate');
+    if (gate) { gate.style.opacity = '1'; gate.style.display = 'flex'; }
+    return;
+  }
+  picker.classList.add('active');
+  const acc = _spCurrentAccount();
+  const userEl = document.getElementById('pickerUserName');
+  if (userEl) userEl.textContent = (acc.name || acc.username || '');
+  await pickerRefresh();
+};
+
+window.pickerClose = function(){
+  const picker = document.getElementById('clientPicker');
+  if (picker) picker.classList.remove('active');
+};
+
+window.pickerRefresh = async function(){
+  const listBox = document.getElementById('pickerList');
+  const countEl = document.getElementById('pickerCount');
+  if (listBox) listBox.innerHTML = '<div class="picker-empty">Loading…</div>';
+  if (countEl) countEl.textContent = '…';
+  pickerSetStatus('', '');
+  try {
+    const driveId = await _spGetDriveId();
+    const folderPath = SP_CONFIG.spFolderPath;
+    const url = 'https://graph.microsoft.com/v1.0/drives/' + driveId
+      + '/root:/' + _spEncodePath(folderPath)
+      + ':/children?$orderby=lastModifiedDateTime desc&$top=200'
+      + '&$select=id,name,size,lastModifiedDateTime,file,createdBy,lastModifiedBy';
+    let res;
+    try { res = await _graph(url); }
+    catch(e) {
+      if (/Graph 404/.test(e.message)) {
+        if (listBox) listBox.innerHTML = '<div class="picker-empty">No saved forms yet.<br><small>Click <strong>+ Start New Form</strong> above to create your first one.</small></div>';
+        if (countEl) countEl.textContent = '0';
+        return;
+      }
+      throw e;
+    }
+    const data = await res.json();
+    // Only show ODC-Onboarding_* JSON files (filters out Contract files)
+    const files = (data.value || []).filter(it =>
+      it.file && it.name &&
+      it.name.toLowerCase().endsWith('.json') &&
+      it.name.indexOf(SP_CONFIG.filePrefix) === 0
+    );
+    if (countEl) countEl.textContent = String(files.length);
+    if (!files.length) {
+      if (listBox) listBox.innerHTML = '<div class="picker-empty">No onboarding forms saved yet.<br><small>Click <strong>+ Start New Form</strong> above to start your first one.</small></div>';
+      return;
+    }
+    if (listBox) {
+      listBox.innerHTML = files.map(f => {
+        const date = new Date(f.lastModifiedDateTime).toLocaleString();
+        const size = (f.size / 1024).toFixed(1) + ' KB';
+        const safeName = _spEscapeHtml(f.name);
+        const safeId = _spEscapeHtml(f.id);
+        let savedBy = '';
+        try {
+          if (f.lastModifiedBy && f.lastModifiedBy.user) {
+            savedBy = f.lastModifiedBy.user.displayName || f.lastModifiedBy.user.email || '';
+          } else if (f.createdBy && f.createdBy.user) {
+            savedBy = f.createdBy.user.displayName || f.createdBy.user.email || '';
+          }
+        } catch(e){}
+        const savedByBit = savedBy ? '<span class="row-saved-by">👤 ' + _spEscapeHtml(savedBy) + '</span> · ' : '';
+        const nameEsc = safeName.replace(/\\/g,'\\\\').replace(/\x27/g,'\\\x27');
+        return '<div class="picker-row" onclick="pickerOpenFile(\'' + safeId + '\',\'' + nameEsc + '\')">'
+          + '<div class="row-main">'
+            + '<div class="row-title">' + safeName + '</div>'
+            + '<div class="row-meta">' + savedByBit + _spEscapeHtml(date) + ' · ' + size + '</div>'
+          + '</div>'
+          + '<div class="row-actions">'
+            + '<button class="btn-open" onclick="event.stopPropagation(); pickerOpenFile(\'' + safeId + '\',\'' + nameEsc + '\')">Open →</button>'
+            + '<button class="btn-del" onclick="event.stopPropagation(); pickerDeleteFile(\'' + safeId + '\',\'' + nameEsc + '\')" title="Delete">🗑</button>'
+          + '</div>'
+        + '</div>';
+      }).join('');
+    }
+  } catch(e) {
+    console.error('[Picker] refresh failed:', e);
+    if (listBox) listBox.innerHTML = '<div class="picker-empty">Could not load the list.</div>';
+    pickerSetStatus('Error: ' + (e.message || e), 'error');
+  }
+};
+
+window.pickerOpenFile = async function(itemId, name){
+  pickerSetStatus('📥 Loading ' + name + '…', 'info');
+  try {
+    const driveId = await _spGetDriveId();
+    const metaUrl = 'https://graph.microsoft.com/v1.0/drives/' + driveId + '/items/' + itemId;
+    const metaRes = await _graph(metaUrl);
+    const meta = await metaRes.json();
+    let downloadUrl = meta['@microsoft.graph.downloadUrl'] || meta['@content.downloadUrl'];
+    let fileRes;
+    if (downloadUrl) {
+      fileRes = await fetch(downloadUrl);
+      if (!fileRes.ok) throw new Error('Pre-signed fetch failed: ' + fileRes.status);
+    } else {
+      fileRes = await _graph('https://graph.microsoft.com/v1.0/drives/' + driveId + '/items/' + itemId + '/content');
+    }
+    const data = await fileRes.json();
+    let arr = null, sigs = null;
+    if (data && Array.isArray(data.values)) { arr = data.values; sigs = data.sigs || null; }
+    else if (data && Array.isArray(data.v)) { arr = data.v; sigs = data.sigs || data.sig || null; }
+    else if (Array.isArray(data)) { arr = data; }
+    if (!arr) { pickerSetStatus('Invalid file format.', 'error'); return; }
+    // Wipe local state for a clean restore
+    pickerWipeFormState();
+    _restoreAllValues(arr);
+    if (sigs) _restoreSignatures(sigs);
+    try {
+      localStorage.setItem(SAVE_KEY, JSON.stringify({ values: arr, sigs: sigs || {}, savedAt: new Date().toISOString() }));
+    } catch(e){}
+    window.__currentPickerFile = { itemId, name };
+    window.pickerClose();
+    const sigCount = sigs ? Object.keys(sigs).length : 0;
+    _showRestoreToast('✓ Loaded <strong>' + _spEscapeHtml(name) + '</strong> — ' + arr.length + ' fields, ' + sigCount + ' signature(s).', false);
+  } catch(e) {
+    console.error('[Picker] open failed:', e);
+    pickerSetStatus('Load failed: ' + (e.message || e), 'error');
+  }
+};
+
+window.pickerDeleteFile = async function(itemId, name){
+  if (!confirm('Really delete "' + name + '" ?\nThis will remove it for the entire team.')) return;
+  pickerSetStatus('🗑 Deleting…', 'info');
+  try {
+    const driveId = await _spGetDriveId();
+    await _graph('https://graph.microsoft.com/v1.0/drives/' + driveId + '/items/' + itemId, { method: 'DELETE' });
+    pickerSetStatus('✓ Deleted.', 'info');
+    await window.pickerRefresh();
+  } catch(e) {
+    console.error('[Picker] delete failed:', e);
+    pickerSetStatus('Delete failed: ' + (e.message || e), 'error');
+  }
+};
+
+// Wipe ALL local form state — called by Start New and before loading a record.
+function pickerWipeFormState(){
+  try {
+    try { localStorage.removeItem(SAVE_KEY); } catch(e){}
+    Object.keys(localStorage).forEach(function(k){
+      if (k.startsWith('odc_shared_') || k.startsWith('odc_sig_')) {
+        try { localStorage.removeItem(k); } catch(e){}
+      }
+    });
+    document.querySelectorAll('input, select, textarea').forEach(el => {
+      if (el.closest('#navBar') || el.closest('#printAllBackdrop') || el.closest('#saveBackdrop')) return;
+      if (el.closest('#clientPicker') || el.closest('#loginGate')) return;
+      if (el.classList.contains('pa-pick') || el.classList.contains('fp-pick')) return;
+      if (el.tagName === 'INPUT' && (el.type === 'button' || el.type === 'submit' || el.type === 'file')) return;
+      if (el.type === 'checkbox' || el.type === 'radio') el.checked = false;
+      else el.value = '';
+      try { el.dispatchEvent(new Event('input', {bubbles:true})); } catch(e){}
+      try { el.dispatchEvent(new Event('change', {bubbles:true})); } catch(e){}
+    });
+    // Clear all signature slots that have data
+    document.querySelectorAll('[data-sigid] img[data-url]').forEach(img => {
+      try { img.removeAttribute('data-url'); img.src = ''; img.style.display = 'none'; } catch(e){}
+    });
+  } catch(e) { console.warn('[Picker] wipe failed:', e); }
+  window.__currentPickerFile = null;
+}
+
+window.pickerStartNew = function(){
+  pickerWipeFormState();
+  window.pickerClose();
+  _showRestoreToast('✓ Started a new form — begin filling out Client Info.', false);
+};
+
+function _spUpdateUi(){
+  const acc = _spCurrentAccount();
+  const inBox = document.getElementById('spSignedIn');
+  const outBox = document.getElementById('spSignedOut');
+  const userInfo = document.getElementById('spUserInfo');
+  if (acc) {
+    if (inBox) inBox.style.display = '';
+    if (outBox) outBox.style.display = 'none';
+    if (userInfo) userInfo.textContent = (acc.name ? acc.name + ' ' : '') + '(' + (acc.username || '') + ')';
+  } else {
+    if (inBox) inBox.style.display = 'none';
+    if (outBox) outBox.style.display = '';
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// LOGIN GATE BOOTSTRAP — wait for MSAL, init, handle redirect return,
+// then either hide the gate (already signed in) or show the Sign-in button.
+// ════════════════════════════════════════════════════════════════════════
+(function gateBootstrap(attemptsLeft){
+  if (attemptsLeft === undefined) attemptsLeft = 200; // 200 × 50ms = 10s
+  const gate = document.getElementById('loginGate');
+  const btn  = document.getElementById('gateLoginBtn');
+  const stat = document.getElementById('gateStatus');
+  const info = document.getElementById('gateSignedIn');
+  if (!gate || !btn || !stat) {
+    return setTimeout(() => gateBootstrap(attemptsLeft - 1), 50);
+  }
+  function setStatus(msg, isError){
+    stat.textContent = msg || '';
+    stat.classList.toggle('error', !!isError);
+  }
+  if (typeof msal === 'undefined') {
+    if (attemptsLeft <= 0) {
+      btn.disabled = true;
+      setStatus('Failed to load Microsoft authentication library. Check that your network allows cdnjs / jsdelivr. (' + (window.__msalLoadError || 'unknown') + ')', true);
+      return;
+    }
+    return setTimeout(() => gateBootstrap(attemptsLeft - 1), 50);
+  }
+  btn.disabled = false;
+  setStatus('Checking sign-in status…');
+  btn.onclick = async function(){
+    btn.disabled = true;
+    setStatus('Redirecting to Microsoft sign-in…');
+    try { await window.spSignIn(); }
+    catch(e){
+      setStatus('Sign-in failed: ' + (e.message || e), true);
+      btn.disabled = false;
+    }
+  };
+  _spInit().then(instance => {
+    if (!instance) {
+      setStatus('Authentication initialization failed — refresh and try again.', true);
+      return;
+    }
+    const acc = _spCurrentAccount();
+    if (acc) {
+      setStatus('');
+      info.style.display = 'block';
+      info.innerHTML = '✓ Signed in as <strong>' + (acc.name || acc.username) + '</strong>';
+      setTimeout(() => {
+        gate.style.transition = 'opacity .25s';
+        gate.style.opacity = '0';
+        setTimeout(() => {
+          gate.style.display = 'none';
+          if (typeof window.pickerOpen === 'function') {
+            window.pickerOpen().catch(e => console.warn('[Gate] picker open:', e));
+          }
+        }, 280);
+      }, 600);
+    } else {
+      setStatus('Please sign in with your ODC Microsoft 365 account.');
+    }
+  }).catch(e => {
+    console.error('[Gate] init failed:', e);
+    setStatus('Initialization error: ' + (e.message || e), true);
+  });
+})();
 </script>
 
 </body>
