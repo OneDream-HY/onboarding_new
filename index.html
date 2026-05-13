@@ -2030,9 +2030,10 @@ document.addEventListener('keydown', e => {
 // ════════════════════════════════════════════════════════════════════════
 // SHAREPOINT INTEGRATION (Microsoft Graph + MSAL.js)
 // Each user signs in with their own Microsoft 365 account; saves go to
-// /sites/AgedCareTeam622/Shared Documents/Service Agreement Records/
-// Onboarding files use prefix "ODC-Onboarding_" so they're filterable from
-// the contract files (which use "ODC-Agreement_").
+// /sites/AgedCareTeam622/Shared Documents/Service Agreement Records/Onboarding/
+// (Onboarding subfolder keeps these separate from contract files, which live
+//  in the parent Service Agreement Records folder with prefix "ODC-Agreement_".)
+// Onboarding files still use prefix "ODC-Onboarding_" as a secondary safeguard.
 // ════════════════════════════════════════════════════════════════════════
 const SP_CONFIG = {
   clientId: '7c1eb587-aeaf-43d9-855d-dba2ac0dc99d',
@@ -2040,7 +2041,7 @@ const SP_CONFIG = {
   redirectUri: window.location.origin + window.location.pathname,
   spHost: 'onedreamcommunity.sharepoint.com',
   spSitePath: '/sites/AgedCareTeam622',
-  spFolderPath: 'Service Agreement Records',
+  spFolderPath: 'Service Agreement Records/Onboarding',
   filePrefix: 'ODC-Onboarding_',
   scopes: ['User.Read', 'Files.ReadWrite.All', 'Sites.ReadWrite.All']
 };
@@ -2151,16 +2152,30 @@ function _spUserFolderName(){
   return upn.split('@')[0].replace(/[\\/:*?"<>|#%&{}]/g, '_').slice(0, 60) || 'unknown';
 }
 async function _spEnsureBaseFolder(){
+  // Walk each path segment so nested paths (e.g. "Service Agreement Records/Onboarding")
+  // get created level-by-level. Microsoft Graph's "create folder" endpoint accepts
+  // a single name, not a slash-separated path, so we can't POST the whole path at once.
   const driveId = await _spGetDriveId();
-  const baseUrl = 'https://graph.microsoft.com/v1.0/drives/' + driveId
-    + '/root:/' + _spEncodePath(SP_CONFIG.spFolderPath);
-  try { await _graph(baseUrl); return; }
-  catch(e) { if (!/Graph 404/.test(e.message)) throw e; }
-  await _graph('https://graph.microsoft.com/v1.0/drives/' + driveId + '/root/children', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: SP_CONFIG.spFolderPath, folder: {}, '@microsoft.graph.conflictBehavior': 'fail' })
-  });
+  const segments = SP_CONFIG.spFolderPath.split('/').filter(s => s.length);
+  let currentPath = '';
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i];
+    const parentPath = currentPath;
+    currentPath = currentPath ? currentPath + '/' + seg : seg;
+    const checkUrl = 'https://graph.microsoft.com/v1.0/drives/' + driveId
+      + '/root:/' + _spEncodePath(currentPath);
+    try { await _graph(checkUrl); continue; }
+    catch(e) { if (!/Graph 404/.test(e.message)) throw e; }
+    const createUrl = parentPath
+      ? 'https://graph.microsoft.com/v1.0/drives/' + driveId
+          + '/root:/' + _spEncodePath(parentPath) + ':/children'
+      : 'https://graph.microsoft.com/v1.0/drives/' + driveId + '/root/children';
+    await _graph(createUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: seg, folder: {}, '@microsoft.graph.conflictBehavior': 'fail' })
+    });
+  }
 }
 
 window.spSignIn = async function(){
@@ -2321,7 +2336,9 @@ window.pickerRefresh = async function(){
       throw e;
     }
     const data = await res.json();
-    // Only show ODC-Onboarding_* JSON files (filters out Contract files)
+    // Only show ODC-Onboarding_* JSON files. The Onboarding subfolder already
+    // isolates these from contract files, but the prefix check stays as a
+    // secondary safeguard in case other JSON files end up in this folder.
     const files = (data.value || []).filter(it =>
       it.file && it.name &&
       it.name.toLowerCase().endsWith('.json') &&
