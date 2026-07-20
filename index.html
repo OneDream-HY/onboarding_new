@@ -204,6 +204,20 @@
       border:none !important; border-bottom:1px solid #1a4f8a !important; background:transparent !important; color:#000 !important; padding:1px 2px !important;
     }
     input::placeholder, textarea::placeholder { color:transparent !important; }
+    /* Textareas: let them grow to fit content so long notes aren't clipped
+       by their on-screen fixed height + scrollbar. The beforeprint JS handler
+       sets an explicit height = scrollHeight in px; these rules stop the
+       browser from re-imposing a min-height, scrollbar, or resize handle. */
+    textarea {
+      min-height:0 !important;
+      max-height:none !important;
+      overflow:visible !important;
+      resize:none !important;
+      white-space:pre-wrap !important;
+      word-wrap:break-word !important;
+      page-break-inside:auto !important;
+      break-inside:auto !important;
+    }
     /* Signature slot in print */
     .sig-slot { border:none !important; border-bottom:1px solid #1a4f8a !important; border-radius:0 !important; background:transparent !important; min-height:32pt !important; max-height:36pt !important; padding:0 !important; }
     .sig-slot .sig-hint { display:none !important; }
@@ -1453,6 +1467,43 @@ function showForm(id) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 function printSection() { window.print(); }
+
+// ────────────────────────────────────────────────────────────────────────
+// Print-time textarea expansion: browsers render <textarea> at its DOM
+// height (with a scrollbar) when printing, so any content past the visible
+// area gets clipped. Before every print we set height = scrollHeight so
+// all content is visible; after print we restore the original inline height.
+// This fires for both window.print() and Cmd/Ctrl+P.
+// ────────────────────────────────────────────────────────────────────────
+(function(){
+  const _origHeights = new WeakMap();
+  function _expandTextareasForPrint(){
+    document.querySelectorAll('textarea').forEach(el => {
+      _origHeights.set(el, el.style.height || '');
+      // Reset first so scrollHeight reflects the true content height
+      el.style.height = 'auto';
+      el.style.height = (el.scrollHeight + 4) + 'px';
+    });
+  }
+  function _restoreTextareasAfterPrint(){
+    document.querySelectorAll('textarea').forEach(el => {
+      if (_origHeights.has(el)) {
+        el.style.height = _origHeights.get(el);
+        _origHeights.delete(el);
+      }
+    });
+  }
+  window.addEventListener('beforeprint', _expandTextareasForPrint);
+  window.addEventListener('afterprint', _restoreTextareasAfterPrint);
+  // Safari on macOS sometimes skips beforeprint when Cmd+P is used from a
+  // background tab; matchMedia gives a reliable fallback.
+  if (window.matchMedia) {
+    const mql = window.matchMedia('print');
+    const handler = (mq => { (mq.matches ? _expandTextareasForPrint : _restoreTextareasAfterPrint)(); });
+    if (mql.addEventListener) mql.addEventListener('change', handler);
+    else if (mql.addListener) mql.addListener(handler);
+  }
+})();
 
 // ====================================================================
 // data-shared auto-sync (Type once, populate everywhere)
