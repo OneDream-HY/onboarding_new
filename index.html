@@ -7,6 +7,9 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
+<!-- Build PDFs in the browser for "Save PDFs to Client Folder" -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <!-- Microsoft Authentication Library (MSAL) — load with multi-CDN fallback. -->
 <script>
   window.__msalLoaded = false;
@@ -535,6 +538,8 @@
   <div id="formTabs" style="display:flex; gap:6px; flex-wrap:wrap; flex:1;"></div>
   <div style="display:flex; gap:6px;">
     <button class="nav-btn" style="background:#fff; color:#4a7a3c; border-color:#4a7a3c;" onclick="togglePicker()">✓ Pick Forms</button>
+    <button class="nav-btn" style="background:#0078d4; color:#fff; border-color:#0078d4;" onclick="cfOpen()" title="Create the PDFs and save them straight into the client's SharePoint folder — no download needed">☁️ Save PDFs to Client Folder</button>
+    <button class="nav-btn" style="background:#fff; color:#0b4a8a; border-color:#6b9bd1;" onclick="odcOpenAgreement()" title="Saves this record, then opens (or starts) this client's Service Agreement with these details filled in">📄 Service Agreement</button>
     <button class="nav-btn" style="background:#fff; color:#4a7a3c; border-color:#4a7a3c;" onclick="openSaveModal()">💾 Save Progress</button>
     <button class="nav-btn" style="background:#2f4a2a; color:#fff; border-color:#2f4a2a;" onclick="openPrintAllModal()">🖨️ Print Multiple…</button>
     <button class="nav-btn" style="background:#fff; color:#a64b1a; border-color:#d99656;" onclick="clearAllAndReload(true)" title="Wipe all data and start fresh for a new participant">🗑 Clear</button>
@@ -1798,7 +1803,7 @@ function _collectAllValues(){
   const out = [];
   const inputs = document.querySelectorAll('input, select, textarea');
   inputs.forEach(el => {
-    if (el.closest('#navBar') || el.closest('#printAllBackdrop') || el.closest('#saveBackdrop')) return;
+    if (el.closest('#navBar') || el.closest('#printAllBackdrop') || el.closest('#saveBackdrop') || el.closest('#cfBackdrop')) return;
     if (el.classList.contains('pa-pick')) return;
     if (el.tagName === 'INPUT' && (el.type === 'button' || el.type === 'submit' || el.type === 'file')) return;
     if (el.type === 'checkbox' || el.type === 'radio') out.push(el.checked ? 1 : 0);
@@ -1819,7 +1824,7 @@ function _collectSignatures(){
 function _collectFull(){ return { v: _collectAllValues(), sigs: _collectSignatures() }; }
 function _restoreAllValues(arr){
   const inputs = Array.from(document.querySelectorAll('input, select, textarea')).filter(el => {
-    if (el.closest('#navBar') || el.closest('#printAllBackdrop') || el.closest('#saveBackdrop')) return false;
+    if (el.closest('#navBar') || el.closest('#printAllBackdrop') || el.closest('#saveBackdrop') || el.closest('#cfBackdrop')) return false;
     if (el.classList.contains('pa-pick')) return false;
     if (el.tagName === 'INPUT' && (el.type === 'button' || el.type === 'submit' || el.type === 'file')) return false;
     return true;
@@ -1987,7 +1992,7 @@ function clearLocalSave(){
   // sees an empty form even without reloading.
   try {
     document.querySelectorAll('input, select, textarea').forEach(el => {
-      if (el.closest('#navBar') || el.closest('#printAllBackdrop') || el.closest('#saveBackdrop')) return;
+      if (el.closest('#navBar') || el.closest('#printAllBackdrop') || el.closest('#saveBackdrop') || el.closest('#cfBackdrop')) return;
       if (el.classList.contains('pa-pick')) return;
       if (el.classList.contains('fp-pick')) return;
       if (el.tagName === 'INPUT' && (el.type === 'button' || el.type === 'submit' || el.type === 'file')) return;
@@ -2299,6 +2304,8 @@ window.saveToSharePoint = async function(){
       values: full.v,
       sigs: full.sigs
     };
+    // Named participant details, client folder and Service Agreement link (see odcRecordExtras)
+    try { if (typeof window.odcRecordExtras === 'function') Object.assign(payload, window.odcRecordExtras()); } catch(e){}
     const json = JSON.stringify(payload, null, 2);
 
     // Filename: ODC-Onboarding_{ClientName}.json (overwrites for same client)
@@ -2315,14 +2322,17 @@ window.saveToSharePoint = async function(){
     const fullPath = SP_CONFIG.spFolderPath + '/' + filename;
     const url = 'https://graph.microsoft.com/v1.0/drives/' + driveId
       + '/root:/' + _spEncodePath(fullPath) + ':/content';
-    await _graph(url, {
+    const _putRes = await _graph(url, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: json
     });
+    let _savedId = null;
+    try { _savedId = (await _putRes.json()).id || null; } catch(e){}
+    window.__lastCloudSave = { name: filename, itemId: _savedId, at: Date.now() };
     const sigCount = full.sigs ? Object.keys(full.sigs).length : 0;
     _showRestoreToast('✓ Saved to SharePoint — <strong>' + _spEscapeHtml(filename) + '</strong><br><small>' + full.v.length + ' fields · ' + sigCount + ' signature(s)</small>', false);
-    window.__currentPickerFile = { name: filename };
+    window.__currentPickerFile = { itemId: _savedId, name: filename };
     if (btn) {
       btn.innerHTML = '✓ Saved!';
       setTimeout(() => { btn.innerHTML = restoreBtn; btn.disabled = false; }, 1800);
@@ -2453,6 +2463,7 @@ window.pickerOpenFile = async function(itemId, name){
       fileRes = await _graph('https://graph.microsoft.com/v1.0/drives/' + driveId + '/items/' + itemId + '/content');
     }
     const data = await fileRes.json();
+    window.__odcLoadedRecord = data;
     let arr = null, sigs = null;
     if (data && Array.isArray(data.values)) { arr = data.values; sigs = data.sigs || null; }
     else if (data && Array.isArray(data.v)) { arr = data.v; sigs = data.sigs || data.sig || null; }
@@ -2499,7 +2510,7 @@ function pickerWipeFormState(){
       }
     });
     document.querySelectorAll('input, select, textarea').forEach(el => {
-      if (el.closest('#navBar') || el.closest('#printAllBackdrop') || el.closest('#saveBackdrop')) return;
+      if (el.closest('#navBar') || el.closest('#printAllBackdrop') || el.closest('#saveBackdrop') || el.closest('#cfBackdrop')) return;
       if (el.closest('#clientPicker') || el.closest('#loginGate')) return;
       if (el.classList.contains('pa-pick') || el.classList.contains('fp-pick')) return;
       if (el.tagName === 'INPUT' && (el.type === 'button' || el.type === 'submit' || el.type === 'file')) return;
@@ -2600,6 +2611,1252 @@ function _spUpdateUi(){
     console.error('[Gate] init failed:', e);
     setStatus('Initialization error: ' + (e.message || e), true);
   });
+})();
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     SAVE SIGNED PDFs STRAIGHT TO THE CLIENT'S SHAREPOINT FOLDER
+     Builds the PDF in the browser (signatures + every typed value included)
+     and uploads it to the "ODC Home Care  Clients" library — no download.
+     Every <input> in this block carries class "nosave" so the positional
+     save/load arrays (_collectAllValues / _restoreAllValues) are unaffected.
+═══════════════════════════════════════════════════════════════════════ -->
+<style>
+  .cf-backdrop { display:none; position:fixed; inset:0; background:rgba(20,30,20,.55); z-index:10050; align-items:flex-start; justify-content:center; overflow-y:auto; padding:28px 12px; }
+  .cf-backdrop.show { display:flex; }
+  .cf-card { background:#fff; border-radius:12px; width:100%; max-width:660px; box-shadow:0 18px 50px rgba(0,0,0,.3); padding:20px 22px 18px; font-size:.88rem; color:#243024; }
+  .cf-head { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .cf-head h3 { margin:0; font-size:1.08rem; font-weight:700; color:#0b4a8a; }
+  .cf-x { background:none; border:none; font-size:1.6rem; line-height:1; cursor:pointer; color:#666; }
+  .cf-sub { margin:6px 0 10px; color:#555; font-size:.82rem; }
+  .cf-sig { padding:8px 11px; border-radius:7px; font-size:.82rem; margin-bottom:12px; border:1px solid #cfe0c4; background:#f4f9ef; color:#2f4a2a; }
+  .cf-sig.warn { border-color:#d99656; background:#fef7f3; color:#7a4a1a; }
+  .cf-step { font-weight:700; color:#3a6330; margin:12px 0 6px; font-size:.86rem; }
+  .cf-step span { font-weight:400; color:#777; }
+  .cf-search { display:flex; gap:6px; flex-wrap:wrap; }
+  .cf-search input { flex:1; min-width:180px; padding:7px 10px; border:1.5px solid #c9d3c0; border-radius:6px; font-size:.88rem; }
+  .cf-btn { padding:7px 12px; border-radius:6px; border:1.5px solid #c9d3c0; background:#fff; color:#2f4a2a; font-weight:600; font-size:.82rem; cursor:pointer; white-space:nowrap; }
+  .cf-btn:hover { background:#f2f7ee; }
+  .cf-btn.primary { background:#0078d4; border-color:#0078d4; color:#fff; padding:9px 18px; font-size:.9rem; }
+  .cf-btn.primary:hover { background:#106ebe; }
+  .cf-btn:disabled { opacity:.55; cursor:default; }
+  .cf-crumbs { margin:9px 0 5px; font-size:.8rem; color:#666; line-height:1.7; word-break:break-word; }
+  .cf-crumbs a { color:#0b4a8a; text-decoration:underline; cursor:pointer; }
+  .cf-crumbs strong { color:#243024; }
+  .cf-list { border:1px solid #dfe6d8; border-radius:8px; max-height:210px; overflow-y:auto; background:#fbfdf9; }
+  .cf-row { display:flex; align-items:center; gap:8px; padding:7px 10px; border-bottom:1px solid #edf1e8; cursor:pointer; }
+  .cf-row:last-child { border-bottom:none; }
+  .cf-row:hover { background:#eef5e8; }
+  .cf-row .nm { flex:1; min-width:0; overflow-wrap:anywhere; }
+  .cf-row .nm small { display:block; color:#888; font-size:.74rem; }
+  .cf-row.file { cursor:default; color:#8a8a8a; font-size:.8rem; }
+  .cf-row.file:hover { background:transparent; }
+  .cf-tag { font-size:.7rem; font-weight:700; color:#0b4a8a; background:#e4effb; border-radius:10px; padding:1px 7px; white-space:nowrap; }
+  .cf-empty { padding:14px; text-align:center; color:#888; font-size:.82rem; }
+  .cf-newfolder { display:flex; gap:6px; align-items:center; margin-top:6px; flex-wrap:wrap; font-size:.78rem; color:#777; }
+  .cf-newfolder input { flex:1; min-width:150px; padding:4px 8px; border:1px solid #d5dccd; border-radius:5px; font-size:.8rem; }
+  .cf-dest { margin-top:9px; padding:8px 11px; border-radius:7px; background:#e9f2fc; border:1px solid #9cc3ea; color:#0b3d6e; font-size:.82rem; word-break:break-word; }
+  .cf-dest.none { background:#f6f6f6; border-color:#ddd; color:#777; }
+  .cf-doc { display:flex; gap:8px; align-items:flex-start; padding:7px 0; border-bottom:1px dashed #e2e8dc; }
+  .cf-doc:last-child { border-bottom:none; }
+  .cf-doc input[type=checkbox] { width:17px; height:17px; margin-top:3px; accent-color:#0078d4; }
+  .cf-doc .body { flex:1; min-width:0; }
+  .cf-doc .ttl { font-weight:600; }
+  .cf-doc .ttl small { font-weight:400; color:#777; }
+  .cf-doc input[type=text] { width:100%; margin-top:4px; padding:5px 8px; border:1px solid #c9d3c0; border-radius:5px; font-size:.82rem; }
+  .cf-conflict { margin-top:10px; padding:10px 12px; border-radius:7px; background:#fff8e6; border:1px solid #e0b84c; color:#6b4e00; font-size:.83rem; }
+  .cf-conflict .cf-btn { margin:6px 6px 0 0; }
+  .cf-status { margin-top:10px; font-size:.83rem; min-height:1.2em; word-break:break-word; }
+  .cf-status.error { color:#a6321a; }
+  .cf-status.info { color:#1a4a7a; }
+  .cf-status.ok { color:#2f4a2a; background:#eef9ea; border:1px solid #4a7a3c; border-radius:7px; padding:10px 12px; }
+  .cf-status.ok a { color:#0b4a8a; font-weight:600; }
+  .cf-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:14px; padding-top:12px; border-top:1px solid #eee; }
+  #cfOverlay { display:none; position:fixed; inset:0; z-index:100000; background:#ffffff; align-items:center; justify-content:center; text-align:center; font-family:Arial, sans-serif; color:#243024; }
+  #cfOverlay .box { max-width:420px; padding:20px; }
+  #cfOverlay .ttl { font-size:1.15rem; font-weight:700; color:#0b4a8a; margin-bottom:8px; }
+  #cfOverlay .msg { font-size:.92rem; color:#555; margin-bottom:14px; }
+  #cfOverlay .bar { height:8px; border-radius:5px; background:#e6ebe1; overflow:hidden; }
+  #cfOverlay .bar i { display:block; height:100%; width:0; background:#0078d4; transition:width .25s; }
+  #cfOverlay .hint { font-size:.78rem; color:#999; margin-top:12px; }
+  /* Field stand-ins used only while the PDF is being drawn */
+  /* Layout used only while a PDF is being drawn: the form on its own at A4 width,
+     fields and signature boxes as plain underlined lines (same as the print layout). */
+  body.odc-pdf { background:#fff !important; }
+  body.odc-pdf .topbar, body.odc-pdf .nav-bar, body.odc-pdf .pi-section, body.odc-pdf .section-actions,
+  body.odc-pdf .no-print, body.odc-pdf #loginGate, body.odc-pdf #clientPicker { display:none !important; }
+  body.odc-pdf main { max-width:none !important; margin:0 !important; padding:0 !important; }
+  body.odc-pdf #formContainer { width:780px !important; max-width:780px !important; margin:0 !important; background:#fff !important; color:#000; }
+  body.odc-pdf .form-section { box-shadow:none !important; border:none !important; border-radius:0 !important; margin:0 !important; }
+  body.odc-pdf .form-body { padding:6px 14px 12px 14px !important; }
+  body.odc-pdf .sig-slot { border:none !important; border-bottom:1px solid #1a4f8a !important; border-radius:0 !important; background:transparent !important; cursor:default !important; }
+  body.odc-pdf .sig-slot .sig-hint, body.odc-pdf .sig-slot .sig-clear-x { display:none !important; }
+  body.odc-pdf .odc-pdf-shim { border-bottom-color:#9fb3c8; }
+  .odc-pdf-shim { display:inline-block; box-sizing:border-box; border-bottom:1px solid #1a4f8a; padding:1px 2px; color:#000; white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word; vertical-align:bottom; line-height:1.3; text-align:left; background:transparent; }
+</style>
+
+<div id="cfOverlay"><div class="box">
+  <div class="ttl" id="cfOverlayTitle">Creating PDF…</div>
+  <div class="msg" id="cfOverlayMsg">Please keep this page open.</div>
+  <div class="bar"><i id="cfOverlayBar"></i></div>
+  <div class="hint">Signatures and everything typed into the document are included.</div>
+</div></div>
+
+<div id="cfBackdrop" class="cf-backdrop no-print">
+  <div class="cf-card" role="dialog" aria-modal="true" aria-labelledby="cfTitle">
+    <div class="cf-head">
+      <h3 id="cfTitle">☁️ Save signed PDF to client folder</h3>
+      <button type="button" class="cf-x" onclick="cfClose()" aria-label="Close">&times;</button>
+    </div>
+    <p class="cf-sub">The PDFs are created here and saved straight into the client's SharePoint folder — nothing to download or upload by hand. The form record (with signatures) is saved to the cloud at the same time.</p>
+    <div id="cfSigLine" class="cf-sig"></div>
+
+    <div class="cf-step">1 · Client folder <span>— in “ODC Home Care Clients”</span></div>
+    <div class="cf-search">
+      <input type="text" id="cfQuery" class="nosave" placeholder="Client name…" autocomplete="off">
+      <button type="button" class="cf-btn" onclick="cfSearch()">🔍 Search</button>
+      <button type="button" class="cf-btn" onclick="cfBrowseRoot()">📁 Browse all</button>
+    </div>
+    <div id="cfCrumbs" class="cf-crumbs"></div>
+    <div id="cfList" class="cf-list"><div class="cf-empty">Loading…</div></div>
+    <div class="cf-newfolder" id="cfNewFolderRow">
+      <span>Folder missing?</span>
+      <input type="text" id="cfNewFolderName" class="nosave" value="01_Onboarding Documents" autocomplete="off">
+      <button type="button" class="cf-btn" onclick="cfCreateFolder()">+ Create inside current folder</button>
+    </div>
+    <div id="cfDest" class="cf-dest none"></div>
+
+    <div class="cf-step">2 · Documents to save <span>— file names can be edited</span></div>
+    <div id="cfDocs"></div>
+
+    <div id="cfConflict" class="cf-conflict" style="display:none;"></div>
+    <div id="cfStatus" class="cf-status"></div>
+    <div class="cf-actions">
+      <button type="button" class="cf-btn" id="cfCancelBtn" onclick="cfClose()">Cancel</button>
+      <button type="button" class="cf-btn primary" id="cfSaveBtn" onclick="cfSave()">☁️ Save to SharePoint</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+const G = 'https://graph.microsoft.com/v1.0';
+const CF_CONFIG = {
+  // Document library that holds one folder per client
+  libraryName: 'ODC Home Care  Clients',
+  // Used only if the library cannot be found by name
+  driveIdHint: 'b!I0bis5wgzk-JzgADzP8AlM-JoBNOh31Ov6V81jmvQvPTCssh40DySJzey3au5DT7',
+  // Sub-folders an agreement normally goes into, in order of preference
+  preferredSubfolders: [/^0?1[\s_.-]*onboarding/i, /^sah$/i, /[_\s]sah$/i]
+};
+
+const _wait = ms => new Promise(r => setTimeout(r, ms));
+const _raf  = () => new Promise(r => requestAnimationFrame(() => r()));
+const _esc  = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const _el   = id => document.getElementById(id);
+
+// ── This app: the onboarding forms ───────────────────────────────────────
+// Title + file name each form is saved under, following the names already used
+// in the clients' "01_Onboarding Documents" folders.
+const OB_DOCS = {
+  client:      ['Client Information Form',                'Client information form.pdf'],
+  safety:      ['Home Safety Checklist',                  '04. Home Safety Checklist.pdf'],
+  intake:      ['Participant Intake Checklist',           '01. Participant Intake Checklist.pdf'],
+  consent:     ['Participant Consent Form',               '02. Participant Consent Form.pdf'],
+  emergency:   ['Emergency and Disaster Management Plan', '03. Emergency and Disaster Management Plan.pdf'],
+  eligibility: ['Self-Managed Eligibility Checklist',     '00-1. Self-Managed Eligibility Checklist.pdf']
+};
+// What links this client's onboarding record to the rest: the SharePoint folder
+// their PDFs go to and their Service Agreement record. The form itself is saved
+// by position, so this is kept beside it (in the cloud record, and in this
+// browser so a refresh does not lose it).
+const LINK_KEY = 'odc_all_forms_link_v1';
+let obLink = {};
+try { obLink = JSON.parse(localStorage.getItem(LINK_KEY) || '{}') || {}; } catch(e) { obLink = {}; }
+function _saveLink(){ try { localStorage.setItem(LINK_KEY, JSON.stringify(obLink)); } catch(e){} }
+
+const APP = {
+  kind: 'onboarding',
+  containerId: 'formContainer',
+  cardSelector: '.form-section',
+  pdfClass: 'odc-pdf',
+  ensureVisible(){ return false; },
+  // Only the open tab's form is normally on screen; show just the one being drawn.
+  showOnly(all, wanted, undo){
+    all.forEach(c => {
+      const was = c.classList.contains('active'), prev = c.style.display;
+      undo.push(() => { c.classList.toggle('active', was); c.style.display = prev; });
+      const on = wanted.indexOf(c) !== -1;
+      c.classList.toggle('active', on);
+      c.style.display = on ? 'block' : 'none';
+    });
+  },
+  clientName(){ return typeof _spGetClientName === 'function' ? _spGetClientName() : ''; },
+  footerLabels(){
+    const out = {};
+    Object.keys(OB_DOCS).forEach(id => { out['form-' + id] = OB_DOCS[id][0]; });
+    return out;
+  },
+  // One PDF per form. Ticked by default: the forms chosen with "Pick Forms".
+  defaultDocs(){
+    const picked = (typeof _picks !== 'undefined' && _picks) ? _picks : new Set(['client']);
+    return FORMS.filter(f => OB_DOCS[f.id] && _el('form-' + f.id)).map(f => ({
+      cardId: 'form-' + f.id, title: OB_DOCS[f.id][0], sub: '', filename: OB_DOCS[f.id][1], checked: picked.has(f.id)
+    }));
+  },
+  noSigHint: 'To include signatures, close this and click each signature box on the forms to sign, then save.',
+  flushLocalDraft(){
+    const full = _collectFull();
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ values: full.v, sigs: full.sigs, savedAt: new Date().toISOString() }));
+    _saveLink();
+  },
+  getDest(){ return obLink.spDest || null; },
+  setDest(dest, client){ obLink.spDest = dest; if (client) obLink.spClient = client; _saveLink(); },
+  afterSaveHtml(){ return '<br>Next: <a href="#" data-applink="agreement">open this client’s Service Agreement →</a>'; },
+  onAppLink(which){ if (which === 'agreement') window.odcOpenAgreement(); }
+};
+
+
+// ════════════════════════════════════════════════════════════════════════
+// PART 1 — PDF BUILDER
+// Draws each page from the live document (html2canvas → real canvas), so
+// what is on screen is what lands in the PDF: signatures, every typed value,
+// ticked boxes, and text in any language. Page breaks are placed between
+// lines / table rows, never through them.
+// ════════════════════════════════════════════════════════════════════════
+const PDF_MX = 28, PDF_MT = 30, PDF_MB = 40;       // page margins (pt)
+const PDF_W = 595.28, PDF_H = 841.89;               // A4 (pt)
+const PDF_JPEG_QUALITY = 0.66;                      // page images: ~230 KB a page, text stays crisp
+
+function _fmtDateValue(v){
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v || '');
+  return m ? (m[3] + '/' + m[2] + '/' + m[1]) : (v || '');
+}
+
+// Swap form controls for plain text while drawing: long values wrap instead
+// of being clipped, empty fields print as a clean blank line (no grey
+// placeholder text, no "Choose an item").
+function _shimInputs(cards, undo){
+  const jobs = [];
+  cards.forEach(card => {
+    card.querySelectorAll('input, select, textarea').forEach(el => {
+      const type = (el.getAttribute('type') || (el.tagName === 'INPUT' ? 'text' : '')).toLowerCase();
+      if (el.tagName === 'INPUT' && ['checkbox','radio','hidden','button','submit','reset','file','image','range','color'].indexOf(type) !== -1) return;
+      const inline = el.classList.contains('ff-inline');
+      const r = el.getBoundingClientRect();
+      // ff-inline inputs are already hidden by the pdf-rendering CSS, so they have no box
+      if (!inline && (!r.width || !r.height)) return;
+      let text = '';
+      if (el.tagName === 'SELECT') {
+        const o = el.options[el.selectedIndex];
+        text = o ? (o.text || '') : '';
+        if (!el.value || (el.selectedIndex === 0 && /^\s*(choose|select|please)\b/i.test(text))) text = '';
+      } else if (type === 'date') {
+        text = _fmtDateValue(el.value);
+      } else {
+        text = el.value || '';
+      }
+      const cs = inline ? null : getComputedStyle(el);
+      jobs.push({ el, inline, text, w: r.width, h: r.height,
+        font: cs ? { size: cs.fontSize, family: cs.fontFamily, weight: cs.fontWeight } : null,
+        multi: el.tagName === 'TEXTAREA' });
+    });
+  });
+  jobs.forEach(j => {
+    const span = document.createElement('span');
+    if (j.inline) {
+      span.className = 'ff-inline-print-shim';
+      if (j.text) span.textContent = j.text;
+      else { span.innerHTML = '&nbsp;'; span.style.display = 'inline-block'; span.style.minWidth = '110px'; }
+    } else {
+      span.className = 'odc-pdf-shim';
+      span.style.width = Math.max(20, Math.round(j.w)) + 'px';
+      span.style.minHeight = Math.max(16, Math.round(j.h)) + 'px';
+      span.style.fontSize = j.font.size; span.style.fontFamily = j.font.family; span.style.fontWeight = j.font.weight;
+      if (j.text) span.textContent = j.text; else span.innerHTML = '&nbsp;';
+      const prev = j.el.getAttribute('style');
+      j.el.style.setProperty('display', 'none', 'important');
+      undo.push(() => { if (prev === null) j.el.removeAttribute('style'); else j.el.setAttribute('style', prev); });
+    }
+    j.el.parentNode.insertBefore(span, j.el);
+    undo.push(() => { if (span.parentNode) span.parentNode.removeChild(span); });
+  });
+}
+
+// Work out where each page of one document starts and ends (CSS px, measured
+// from the top of the documents container) so that no line of text, table row,
+// signature or field is cut in half.
+function _pageSlices(card, originTop, pageH){
+  const cr = card.getBoundingClientRect();
+  const top = cr.top - originTop, bottom = cr.bottom - originTop;
+  const iv = [];
+  const add = (a, b) => { if (b - a > 0.5 && b > top && a < bottom) iv.push([a, b]); };
+
+  const tw = document.createTreeWalker(card, NodeFilter.SHOW_TEXT);
+  const range = document.createRange();
+  let n;
+  while ((n = tw.nextNode())) {
+    if (!n.nodeValue || !n.nodeValue.trim()) continue;
+    range.selectNodeContents(n);
+    const rects = range.getClientRects();
+    for (let i = 0; i < rects.length; i++) {
+      const r = rects[i];
+      if (r.width > 0 && r.height > 0) add(r.top - originTop, r.bottom - originTop);
+    }
+  }
+  card.querySelectorAll('img, svg, input, .sig-slot, .odc-pdf-shim, tr, .doc-cover, .declaration, .alerts-title').forEach(el => {
+    const r = el.getBoundingClientRect();
+    if (!r.width || !r.height || r.height > pageH * 0.8) return;
+    add(r.top - originTop, r.bottom - originTop);
+  });
+  // A heading stays with the first lines of whatever follows it
+  const keepWithNext = h => {
+    const r = h.getBoundingClientRect();
+    if (!r.height) return;
+    let nx = h.nextElementSibling;
+    while (nx && !nx.getBoundingClientRect().height) nx = nx.nextElementSibling;
+    if (!nx) return;
+    const nr = nx.getBoundingClientRect();
+    // …up to the bottom of the first line of text in it (the first row of a table, the first line of a paragraph)
+    let firstBottom = Math.min(nr.bottom, nr.top + 40);
+    const w2 = document.createTreeWalker(nx, NodeFilter.SHOW_TEXT);
+    let t2, tries = 0;
+    while ((t2 = w2.nextNode()) && tries < 40) {
+      if (!t2.nodeValue || !t2.nodeValue.trim()) continue;
+      tries++;
+      range.selectNodeContents(t2);
+      const fr = range.getClientRects()[0];
+      if (fr && fr.height > 0) { firstBottom = fr.bottom; break; }
+    }
+    add(r.top - originTop, firstBottom - originTop);
+  };
+  card.querySelectorAll('h1,h2,h3,h4,h5,h6,.doc-section-h,.sub-h,.form-section-title,summary,.doc-card-header').forEach(keepWithNext);
+  card.querySelectorAll('p').forEach(p => {
+    if (p.children.length === 1 && p.firstElementChild.tagName === 'STRONG'
+        && p.textContent.trim() === p.firstElementChild.textContent.trim() && p.textContent.length < 110) keepWithNext(p);
+  });
+
+  iv.sort((x, y) => x[0] - y[0]);
+  const merged = [];
+  iv.forEach(seg => {
+    const last = merged[merged.length - 1];
+    // rows of a bordered table overlap their neighbour by a border width — that is touching, not one block
+    if (last && seg[0] < last[1] - 2.5) { if (seg[1] > last[1]) last[1] = seg[1]; }
+    else merged.push([seg[0], seg[1]]);
+  });
+
+  const slices = [];
+  let y = top, guard = 0;
+  while (bottom - y > pageH + 0.5 && guard++ < 1000) {
+    let cut = y + pageH;
+    for (let i = merged.length - 1; i >= 0; i--) {
+      const a = merged[i][0], b = merged[i][1];
+      if (b <= cut) break;
+      if (a < cut) {                                  // this block straddles the cut → break above it
+        const prevB = i > 0 ? merged[i - 1][1] : -Infinity;
+        cut = (prevB > a - 2) ? (prevB + a) / 2 : a - 2;
+        break;
+      }
+    }
+    if (cut - y < pageH * 0.4) { cut = y + pageH; slices.hardCuts = (slices.hardCuts || 0) + 1; }   // block taller than a page: a hard cut is unavoidable
+    slices.push([y, cut]);
+    y = cut;
+  }
+  const hasContent = merged.some(seg => seg[1] > y + 1 && seg[0] < bottom);
+  if (hasContent || !slices.length) slices.push([y, bottom]);
+  return slices;
+}
+
+function _canvasIsBlank(canvas){
+  try {
+    const w = 40, h = Math.max(40, Math.min(400, Math.round(40 * canvas.height / Math.max(1, canvas.width))));
+    const t = document.createElement('canvas'); t.width = w; t.height = h;
+    const ctx = t.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(canvas, 0, 0, w, h);
+    const d = ctx.getImageData(0, 0, w, h).data;
+    for (let i = 0; i < d.length; i += 4) { if (d[i] < 236 || d[i+1] < 236 || d[i+2] < 236) return false; }
+    return true;
+  } catch(e) { return false; }
+}
+
+// cardIds: ids of the document sections to draw, in order.  Returns { blob, pages }.
+async function odcRenderPdf(cardIds, opts){
+  opts = opts || {};
+  const progress = typeof opts.onProgress === 'function' ? opts.onProgress : function(){};
+  const jsPDFClass = (window.jspdf && window.jspdf.jsPDF) ? window.jspdf.jsPDF : (typeof window.jsPDF !== 'undefined' ? window.jsPDF : null);
+  if (!jsPDFClass) throw new Error('The PDF library (jsPDF) did not load. Refresh the page and try again.');
+  if (typeof window.html2canvas !== 'function') throw new Error('The PDF library (html2canvas) did not load. Refresh the page and try again.');
+
+  if (APP.ensureVisible && APP.ensureVisible()) await _wait(150);
+  const container = _el(APP.containerId);
+  const allCards = Array.prototype.slice.call(container.querySelectorAll(APP.cardSelector));
+  const wanted = allCards.filter(c => cardIds.indexOf(c.id) !== -1);
+  if (!wanted.length) throw new Error('The document is not on the page.');
+
+  const undo = [];
+  const prevScrollX = window.scrollX, prevScrollY = window.scrollY;
+  const prevBodyOverflow = document.body.style.overflow;
+  try {
+    APP.showOnly(allCards, wanted, undo);
+    container.querySelectorAll('details:not([open])').forEach(d => { d.setAttribute('open', ''); undo.push(() => d.removeAttribute('open')); });
+    document.body.style.overflow = '';
+    undo.push(() => { document.body.style.overflow = prevBodyOverflow; });
+    document.body.classList.add(APP.pdfClass);
+    undo.push(() => document.body.classList.remove(APP.pdfClass));
+    window.scrollTo(0, 0);
+    await _raf(); await _wait(60);
+    _shimInputs(wanted, undo);
+    if (document.fonts && document.fonts.ready) { try { await Promise.race([document.fonts.ready, _wait(1500)]); } catch(e){} }
+    const imgs = [];
+    wanted.forEach(c => c.querySelectorAll('img').forEach(i => imgs.push(i)));
+    await Promise.all(imgs.map(i => (i.decode ? i.decode().catch(() => {}) : null)));
+    await _raf(); await _wait(250);
+
+    const cRect = container.getBoundingClientRect();
+    const cw = Math.round(cRect.width);
+    const usableW = PDF_W - 2 * PDF_MX, usableH = PDF_H - PDF_MT - PDF_MB;
+    const pageH = Math.floor(cw * usableH / usableW);
+    const pages = [];
+    let hardCuts = 0;
+    wanted.forEach(card => {
+      const sl = _pageSlices(card, cRect.top, pageH);
+      hardCuts += sl.hardCuts || 0;
+      sl.forEach(s => pages.push({ y0: s[0], y1: s[1], label: (opts.footerLabels && opts.footerLabels[card.id]) || '' }));
+    });
+    if (!pages.length) throw new Error('Nothing to draw.');
+
+    const ua = navigator.userAgent || '';
+    const constrained = /Android|iP(ad|hone|od)|Mobile/i.test(ua) || (/Macintosh/i.test(ua) && (navigator.maxTouchPoints || 0) > 1);
+    // Canvas-size budgets. Tablets/phones (iPad/iPhone in particular) only allow
+    // small canvases, so they draw a few pages at a time; if a pass comes back
+    // blank the next, smaller budget is tried.
+    const tiers = constrained ? [{ scale: 1.5, area: 12e6 }, { scale: 1.25, area: 7e6 }]
+                              : [{ scale: 1.5, area: 24e6 }, { scale: 1.5, area: 12e6 }, { scale: 1.25, area: 7e6 }];
+
+    const renderTier = async tier => {
+      const scale = tier.scale;
+      const maxCss = Math.max(pageH + 4, Math.floor(tier.area / (cw * scale * scale)));
+      const pdf = new jsPDFClass({ unit: 'pt', format: 'a4', orientation: 'portrait', compress: true });
+      let i = 0, pageNo = 0;
+      while (i < pages.length) {
+        let j = i;
+        while (j + 1 < pages.length && pages[j + 1].y1 - pages[i].y0 <= maxCss) j++;
+        const top = pages[i].y0, h = pages[j].y1 - top;
+        progress({ done: i, total: pages.length });
+        await _wait(15);
+        const canvas = await window.html2canvas(container, {
+          x: 0, y: top, width: cw, height: Math.ceil(h),
+          scale: scale, backgroundColor: '#ffffff', useCORS: true, logging: false,
+          ignoreElements: el => el.id === 'cfOverlay' || el.id === 'cfBackdrop' || el.id === 'clientPicker' || el.id === 'loginGate'
+        });
+        if (!canvas || !canvas.width || !canvas.height || _canvasIsBlank(canvas)) throw new Error('blank-canvas');
+        for (let k = i; k <= j; k++) {
+          const sy = Math.round((pages[k].y0 - top) * scale);
+          const sh = Math.max(1, Math.round((pages[k].y1 - pages[k].y0) * scale));
+          const pc = document.createElement('canvas');
+          pc.width = canvas.width; pc.height = sh;
+          const ctx = pc.getContext('2d');
+          ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, pc.width, pc.height);
+          const copyH = Math.min(sh, canvas.height - sy);
+          if (copyH > 0) ctx.drawImage(canvas, 0, sy, canvas.width, copyH, 0, 0, canvas.width, copyH);
+          const data = pc.toDataURL('image/jpeg', PDF_JPEG_QUALITY);
+          if (pageNo > 0) pdf.addPage();
+          pdf.addImage(data, 'JPEG', PDF_MX, PDF_MT, usableW, (sh / scale) * usableW / cw, undefined, 'FAST');
+          pageNo++;
+          pc.width = 0; pc.height = 0;
+        }
+        canvas.width = 0; canvas.height = 0;
+        i = j + 1;
+      }
+      const total = pdf.getNumberOfPages();
+      pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.5); pdf.setTextColor(110, 110, 110);
+      for (let p = 1; p <= total; p++) {
+        pdf.setPage(p);
+        const label = 'Page ' + p + ' of ' + total;
+        pdf.text(label, PDF_W - PDF_MX - pdf.getTextWidth(label), PDF_H - 16);
+        const left = pages[p - 1] ? pages[p - 1].label : '';
+        if (left && /^[\x20-\x7E]*$/.test(left)) pdf.text(left, PDF_MX, PDF_H - 16);
+      }
+      try { pdf.setProperties({ title: opts.title && /^[\x20-\x7E]*$/.test(opts.title) ? opts.title : 'One Dream Community - Service Agreement', creator: 'ODC Service Agreement app' }); } catch(e){}
+      progress({ done: pages.length, total: pages.length });
+      return pdf;
+    };
+
+    let pdf = null, lastErr = null;
+    for (let t = 0; t < tiers.length && !pdf; t++) {
+      try { pdf = await renderTier(tiers[t]); }
+      catch(e) { lastErr = e; console.warn('[PDF] pass ' + (t + 1) + ' failed (' + (e && e.message) + ')' + (t + 1 < tiers.length ? ' — retrying smaller' : '')); }
+    }
+    if (!pdf) {
+      throw new Error((lastErr && lastErr.message === 'blank-canvas')
+        ? 'This device could not draw the document (blank page). Nothing was saved — please try again in Chrome or Edge on a computer.'
+        : 'Could not create the PDF: ' + ((lastErr && lastErr.message) || lastErr));
+    }
+    return { blob: pdf.output('blob'), pages: pdf.getNumberOfPages(), hardCuts: hardCuts };
+  } finally {
+    for (let u = undo.length - 1; u >= 0; u--) { try { undo[u](); } catch(e){} }
+    window.scrollTo(prevScrollX, prevScrollY);
+  }
+}
+window.odcRenderPdf = odcRenderPdf;
+
+// ── Progress overlay (covers the page while the document is laid out for capture) ──
+const overlay = {
+  show(title, msg){ const o = _el('cfOverlay'); if (!o) return; o.style.display = 'flex'; this.set(title, msg, 0); },
+  set(title, msg, frac){
+    if (title != null && _el('cfOverlayTitle')) _el('cfOverlayTitle').textContent = title;
+    if (msg != null && _el('cfOverlayMsg')) _el('cfOverlayMsg').textContent = msg;
+    if (frac != null && _el('cfOverlayBar')) _el('cfOverlayBar').style.width = Math.round(Math.max(0, Math.min(1, frac)) * 100) + '%';
+  },
+  hide(){ const o = _el('cfOverlay'); if (o) o.style.display = 'none'; }
+};
+
+// ════════════════════════════════════════════════════════════════════════
+// PART 2 — SHAREPOINT: CLIENT FOLDER BROWSER + DIRECT UPLOAD
+// ════════════════════════════════════════════════════════════════════════
+const cf = { busy: false, stack: [], items: [], results: null, rootCache: null, conflictChoice: null, drive: null, docs: [], loadSeq: 0, saved: false };
+
+function _status(msg, kind){ const s = _el('cfStatus'); if (!s) return; s.className = 'cf-status ' + (kind || ''); s.innerHTML = msg || ''; }
+function _norm(s){ return String(s || '').toLowerCase().replace(/[^a-z0-9À-￿]+/g, ' ').trim(); }
+function _compact(s){ return _norm(s).replace(/\s+/g, ''); }
+// 2 = every word of the query is in the folder name, 1 = some are, 0 = none
+function _score(folderName, query){
+  const q = _norm(query), n = _norm(folderName);
+  if (!q) return 0;
+  const toks = q.split(' ').filter(Boolean);
+  const hit = toks.filter(t => n.indexOf(t) !== -1).length;
+  if (hit === toks.length) return 2;
+  if (_compact(folderName).indexOf(_compact(query)) !== -1) return 2;
+  return hit ? 1 : 0;
+}
+function _safeFileName(name){
+  let n = String(name || '').replace(/["*:<>?\/\\|]/g, ' ').replace(/\s+/g, ' ').trim().replace(/^\.+|\.+$/g, '').trim();
+  n = n.replace(/\.pdf$/i, '').trim().slice(0, 170);
+  return n ? n + '.pdf' : '';
+}
+function _fmtSize(b){ return b > 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB'; }
+
+async function _getDrive(){
+  if (cf.drive) return cf.drive;
+  const tidy = s => String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  const want = tidy(CF_CONFIG.libraryName);
+  try {
+    const siteId = await _spGetSiteId();
+    const data = await (await _graph(G + '/sites/' + siteId + '/drives?$select=id,name,webUrl&$top=200')).json();
+    const hit = (data.value || []).find(d => {
+      let tail = '';
+      try { tail = decodeURIComponent(String(d.webUrl || '').split('/').pop()); } catch(e){}
+      return tidy(d.name) === want || tidy(tail) === want;
+    });
+    if (hit) { cf.drive = hit; return hit; }
+  } catch(e) {
+    if (/Redirecting for re-authentication/.test(e.message || '')) throw e;
+    console.warn('[ClientFolder] library lookup by name failed:', e.message || e);
+  }
+  const d = await (await _graph(G + '/drives/' + CF_CONFIG.driveIdHint + '?$select=id,name,webUrl')).json();
+  cf.drive = d;
+  return d;
+}
+
+async function _children(folderId){
+  const drive = await _getDrive();
+  let url = G + '/drives/' + drive.id + (folderId ? '/items/' + folderId : '/root')
+    + '/children?$top=500&$select=id,name,folder,file,size,webUrl,lastModifiedDateTime';
+  const out = [];
+  while (url && out.length < 6000) {
+    const data = await (await _graph(url)).json();
+    (data.value || []).forEach(v => out.push(v));
+    url = data['@odata.nextLink'] || null;
+  }
+  return out;
+}
+
+function _parentPath(item){
+  const p = item && item.parentReference && item.parentReference.path ? item.parentReference.path : '';
+  const i = p.indexOf('root:');
+  let rel = i === -1 ? '' : p.slice(i + 5);
+  try { rel = decodeURIComponent(rel); } catch(e){}
+  return rel.replace(/^\/+|\/+$/g, '');
+}
+
+async function _searchFolders(q){
+  const drive = await _getDrive();
+  const safe = encodeURIComponent(q.replace(/'/g, "''"));
+  const url = G + '/drives/' + drive.id + "/root/search(q='" + safe + "')?$top=100&$select=id,name,folder,parentReference,webUrl";
+  const data = await (await _graph(url)).json();
+  return (data.value || []).filter(v => v.folder).map(v => ({ id: v.id, name: v.name, webUrl: v.webUrl, parentPath: _parentPath(v) }));
+}
+
+function _crumbsText(){ return [CF_CONFIG.libraryName.replace(/\s+/g, ' ')].concat(cf.stack.map(c => c.name)).join(' › '); }
+function _current(){ return cf.stack.length ? cf.stack[cf.stack.length - 1] : null; }
+
+function _render(){
+  // breadcrumbs
+  const crumbs = ['<a data-crumb="-1">📁 ' + _esc(CF_CONFIG.libraryName.replace(/\s+/g, ' ')) + '</a>'];
+  cf.stack.forEach((c, i) => {
+    crumbs.push(i === cf.stack.length - 1 ? '<strong>' + _esc(c.name) + '</strong>' : '<a data-crumb="' + i + '">' + _esc(c.name) + '</a>');
+  });
+  _el('cfCrumbs').innerHTML = cf.results ? 'Search results — click the client’s folder' : crumbs.join(' › ');
+
+  // list
+  const list = _el('cfList');
+  if (cf.results) {
+    list.innerHTML = cf.results.length
+      ? cf.results.map((r, i) => '<div class="cf-row" data-result="' + i + '"><span>📁</span><span class="nm">' + _esc(r.name)
+          + (r.parentPath ? '<small>in ' + _esc(r.parentPath) + '</small>' : '') + '</span><span class="cf-tag">Open ›</span></div>').join('')
+      : '<div class="cf-empty">No folder found with that name.<br>Check the spelling, try the surname only, or use <strong>Browse all</strong>.</div>';
+  } else {
+    const folders = cf.items.filter(v => v.folder).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+    const pdfs = cf.items.filter(v => v.file && /\.pdf$/i.test(v.name)).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+    let html = folders.map(f => '<div class="cf-row" data-folder="' + _esc(f.id) + '"><span>📁</span><span class="nm">' + _esc(f.name) + '</span>'
+        + (cf.stack.length && CF_CONFIG.preferredSubfolders.some(rx => rx.test(f.name)) ? '<span class="cf-tag">usual place</span>' : '') + '</div>').join('');
+    html += pdfs.slice(0, 40).map(f => '<div class="cf-row file"><span>📄</span><span class="nm">' + _esc(f.name) + '</span></div>').join('');
+    list.innerHTML = html || '<div class="cf-empty">' + (cf.stack.length ? 'This folder has no sub-folders or PDFs yet.' : 'No folders found.') + '</div>';
+  }
+
+  // destination line
+  const dest = _el('cfDest'), cur = _current();
+  if (cur && cur.id && !cf.results) {
+    dest.className = 'cf-dest';
+    dest.innerHTML = '📥 <strong>Will save into:</strong> ' + _esc(cf.stack.map(c => c.name).join(' › '));
+  } else {
+    dest.className = 'cf-dest none';
+    dest.innerHTML = 'Open the client’s folder above to choose where the PDF goes.';
+  }
+  _el('cfNewFolderRow').style.display = (cur && cur.id && !cf.results) ? 'flex' : 'none';
+  _el('cfSaveBtn').disabled = cf.busy || cf.saved || !(cur && cur.id) || !!cf.results;
+}
+
+async function _load(){
+  const seq = ++cf.loadSeq;
+  cf.results = null;
+  _el('cfList').innerHTML = '<div class="cf-empty">Loading…</div>';
+  const cur = _current();
+  const items = await _children(cur ? cur.id : null);
+  if (seq !== cf.loadSeq) return false;
+  cf.items = items;
+  if (!cur) cf.rootCache = items;
+  _render();
+  return true;
+}
+
+// autoDescend is true when the folder was picked as "the client's folder" (from a search hit)
+async function _enter(folder, autoDescend){
+  cf.stack.push({ id: folder.id, name: folder.name, webUrl: folder.webUrl || '', client: !!autoDescend });
+  if (!(await _load())) return;
+  if (autoDescend) {
+    const subs = cf.items.filter(v => v.folder);
+    for (let i = 0; i < CF_CONFIG.preferredSubfolders.length; i++) {
+      const hit = subs.filter(s => CF_CONFIG.preferredSubfolders[i].test(s.name));
+      if (hit.length === 1) { cf.stack.push({ id: hit[0].id, name: hit[0].name, webUrl: hit[0].webUrl || '' }); await _load(); break; }
+      if (hit.length > 1) break;
+    }
+  }
+}
+
+// Which breadcrumb is the client's own folder (as opposed to "01_Onboarding Documents" inside it)
+function _clientCrumb(){
+  let c = cf.stack.find(x => x.client && x.id);
+  if (!c && cf.stack.length) {
+    const last = cf.stack[cf.stack.length - 1];
+    const isSub = cf.stack.length >= 2 && CF_CONFIG.preferredSubfolders.some(rx => rx.test(last.name));
+    c = isSub ? cf.stack[cf.stack.length - 2] : last;
+  }
+  if (!c || !c.id) return null;
+  const idx = cf.stack.indexOf(c);
+  return { id: c.id, name: c.name, url: c.webUrl || '', path: cf.stack.slice(0, idx).map(x => x.name).join('/') };
+}
+
+function _handleErr(e, what){
+  console.error('[ClientFolder] ' + what + ':', e);
+  if (/Redirecting for re-authentication/.test((e && e.message) || '')) return;
+  _status('✗ ' + _esc(what) + ': ' + _esc((e && e.message) || e), 'error');
+}
+
+window.cfBrowseRoot = async function(){
+  if (cf.busy) return;
+  try { cf.stack = []; cf.conflictChoice = null; _el('cfConflict').style.display = 'none'; _status('', ''); await _load(); }
+  catch(e) { _handleErr(e, 'Could not open the client library'); }
+};
+
+window.cfSearch = async function(){
+  if (cf.busy) return;
+  const q = (_el('cfQuery').value || '').trim();
+  if (!q) return window.cfBrowseRoot();
+  const seq = ++cf.loadSeq;
+  cf.conflictChoice = null; _el('cfConflict').style.display = 'none';
+  _status('', '');
+  _el('cfList').innerHTML = '<div class="cf-empty">Searching for “' + _esc(q) + '”…</div>';
+  try {
+    if (!cf.rootCache) cf.rootCache = await _children(null);
+    let remote = [];
+    try { remote = await _searchFolders(q); } catch(e) { if (/Redirecting/.test(e.message || '')) throw e; console.warn('[ClientFolder] search failed, using folder list only:', e.message || e); }
+    if (seq !== cf.loadSeq) return;
+    const byId = {};
+    cf.rootCache.filter(v => v.folder).forEach(v => { byId[v.id] = { id: v.id, name: v.name, webUrl: v.webUrl, parentPath: '', s: _score(v.name, q) }; });
+    remote.forEach(v => { if (!byId[v.id]) byId[v.id] = Object.assign({ s: _score(v.name, q) }, v); });
+    let cands = Object.keys(byId).map(k => byId[k]).filter(c => c.s === 2);
+    const exact = cands.length > 0;
+    if (!exact) cands = Object.keys(byId).map(k => byId[k]).filter(c => c.s === 1);
+    // a client's own sub-folders often repeat the client's name — keep only the top one
+    cands = cands.filter(c => !cands.some(d => d !== c && ('/' + c.parentPath + '/').indexOf('/' + d.name + '/') !== -1));
+    cands.sort((a, b) => (a.parentPath ? 1 : 0) - (b.parentPath ? 1 : 0) || a.name.localeCompare(b.name));
+    cands = cands.slice(0, 60);
+    if (exact && cands.length === 1) {
+      cf.stack = []; cf.results = null;
+      if (cands[0].parentPath) cands[0].parentPath.split('/').forEach(seg => cf.stack.push({ id: null, name: seg, path: true }));
+      _fixPathCrumbs();
+      await _enter(cands[0], true);
+      return;
+    }
+    cf.results = cands;
+    cf.stack = [];
+    _render();
+  } catch(e) { _handleErr(e, 'Search failed'); }
+};
+
+// Breadcrumbs that came from a search hit only know their path, not their id
+function _fixPathCrumbs(){
+  let acc = '';
+  cf.stack.forEach(c => { if (c.path === true) { acc = acc ? acc + '/' + c.name : c.name; c.path = acc; } });
+}
+async function _resolveCrumb(c){
+  if (c.id || !c.path) return c;
+  const drive = await _getDrive();
+  const meta = await (await _graph(G + '/drives/' + drive.id + '/root:/' + _spEncodePath(c.path) + '?$select=id,name,webUrl')).json();
+  c.id = meta.id; c.webUrl = meta.webUrl || '';
+  return c;
+}
+
+window.cfCreateFolder = async function(){
+  const cur = _current();
+  if (cf.busy || !cur || !cur.id) return;
+  const name = (_el('cfNewFolderName').value || '').replace(/["*:<>?\/\\|]/g, ' ').replace(/\s+/g, ' ').trim().replace(/\.+$/, '');
+  if (!name) { _status('Type a name for the new folder first.', 'error'); return; }
+  const exists = cf.items.find(v => v.folder && v.name.toLowerCase() === name.toLowerCase());
+  try {
+    if (exists) { await _enter(exists, false); return; }
+    const drive = await _getDrive();
+    const made = await (await _graph(G + '/drives/' + drive.id + '/items/' + cur.id + '/children', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name, folder: {}, '@microsoft.graph.conflictBehavior': 'fail' })
+    })).json();
+    _status('✓ Folder “' + _esc(name) + '” created.', 'info');
+    await _enter(made, false);
+  } catch(e) { _handleErr(e, 'Could not create the folder'); }
+};
+
+function _defaultDocs(){
+  const docs = APP.defaultDocs();
+  docs.forEach(d => {
+    d.filename = _safeFileName(d.filename);
+    const card = _el(d.cardId);
+    d.slots = card ? card.querySelectorAll('.sig-slot').length : 0;
+    // a signature counts only if its image is really there (a cleared slot can keep its "applied" look)
+    d.sigs = card ? Array.prototype.filter.call(card.querySelectorAll('.sig-slot img'), i => (i.getAttribute('src') || '').length > 20 && i.style.display !== 'none').length : 0;
+  });
+  return docs;
+}
+function _renderDocs(){
+  _el('cfDocs').innerHTML = cf.docs.map((d, i) =>
+    '<div class="cf-doc"><input type="checkbox" class="nosave" data-doc="' + i + '"' + (d.checked ? ' checked' : '') + '>'
+    + '<div class="body"><div class="ttl">📄 ' + _esc(d.title) + ' <small>— ' + (d.sub ? _esc(d.sub) + ' · ' : '') + (d.sigs ? '✍️ ' + d.sigs + ' signature' + (d.sigs > 1 ? 's' : '') + ' on it' : (d.slots ? '⚠ not signed yet' : 'no signature needed')) + '</small></div>'
+    + '<input type="text" class="nosave" data-docname="' + i + '" value="' + _esc(d.filename) + '" autocomplete="off"></div></div>').join('')
+    || '<div class="cf-empty">There is no document on the page to save yet.</div>';
+  const total = cf.docs.reduce((n, d) => n + d.sigs, 0);
+  const sig = _el('cfSigLine');
+  if (!cf.docs.some(d => d.slots)) { sig.className = 'cf-sig'; sig.innerHTML = 'Everything typed into the form' + (cf.docs.length > 1 ? 's' : '') + ' will be in the PDF.'; }
+  else if (total) { sig.className = 'cf-sig'; sig.innerHTML = '✍️ <strong>' + total + '</strong> signature' + (total > 1 ? 's are' : ' is') + ' placed on the document' + (cf.docs.length > 1 ? 's' : '') + ' and will be in the PDF.'; }
+  else { sig.className = 'cf-sig warn'; sig.innerHTML = '⚠ <strong>No signature has been placed yet.</strong> ' + APP.noSigHint + ' You can still save an unsigned copy.'; }
+}
+function _readDocs(){
+  document.querySelectorAll('#cfDocs [data-doc]').forEach(c => { const d = cf.docs[+c.getAttribute('data-doc')]; if (d) d.checked = c.checked; });
+  document.querySelectorAll('#cfDocs [data-docname]').forEach(c => { const d = cf.docs[+c.getAttribute('data-docname')]; if (d) d.filename = _safeFileName(c.value); });
+}
+
+function _flushLocalDraft(){
+  try { APP.flushLocalDraft(); } catch(e) { console.warn('[ClientFolder] local draft flush failed:', e); }
+}
+
+window.cfOpen = async function(){
+  if (typeof _spCurrentAccount !== 'function' || !_spCurrentAccount()) {
+    if (typeof _showToast === 'function') _showToast('Please sign in with your ODC Microsoft 365 account first.', 'error');
+    return;
+  }
+  if (APP.ensureVisible) APP.ensureVisible();
+  cf.busy = false; cf.saved = false; cf.conflictChoice = null; cf.results = null; cf.stack = []; cf.items = [];
+  _el('cfConflict').style.display = 'none';
+  _el('cfCancelBtn').textContent = 'Cancel';
+  _el('cfSaveBtn').textContent = '☁️ Save to SharePoint';
+  _status('', '');
+  cf.docs = _defaultDocs();
+  _renderDocs();
+  _el('cfQuery').value = APP.clientName();
+  _el('cfBackdrop').classList.add('show');
+  document.body.style.overflow = 'hidden';
+  _render();
+  _flushLocalDraft();
+  try {
+    // Destination remembered from the last time this client's record was saved
+    const mem = APP.getDest();
+    if (mem && mem.id && Array.isArray(mem.crumbs) && mem.crumbs.length) {
+      try {
+        const drive = await _getDrive();
+        await _graph(G + '/drives/' + drive.id + '/items/' + mem.id + '?$select=id');
+        cf.stack = mem.crumbs.map(c => ({ id: c.id || null, name: c.name, path: c.path || null, webUrl: c.webUrl || '', client: !!c.client }));
+        await _load();
+        _status('Using the folder this client’s PDF was saved to last time.', 'info');
+        return;
+      } catch(e) {
+        if (/Redirecting/.test(e.message || '')) throw e;
+        cf.stack = [];
+      }
+    }
+    if (APP.clientName()) await window.cfSearch(); else await window.cfBrowseRoot();
+  } catch(e) { _handleErr(e, 'Could not open the client library'); }
+};
+
+window.cfClose = function(){
+  if (cf.busy) return;
+  _el('cfBackdrop').classList.remove('show');
+  document.body.style.overflow = '';
+};
+
+function _showConflict(clashes){
+  const box = _el('cfConflict');
+  box.innerHTML = '⚠ <strong>Already in this folder:</strong><br>' + clashes.map(d => '• ' + _esc(d.filename)).join('<br>')
+    + '<br><button type="button" class="cf-btn" data-conflict="replace">Replace the existing file</button>'
+    + '<button type="button" class="cf-btn" data-conflict="rename">Keep both (add a number)</button>';
+  box.style.display = 'block';
+}
+
+async function _upload(folderId, filename, blob, behavior){
+  const drive = await _getDrive();
+  const url = G + '/drives/' + drive.id + '/items/' + folderId + ':/' + encodeURIComponent(filename)
+    + ':/content?@microsoft.graph.conflictBehavior=' + behavior;
+  return (await _graph(url, { method: 'PUT', headers: { 'Content-Type': 'application/pdf' }, body: blob })).json();
+}
+
+window.cfSave = async function(){
+  if (cf.busy || cf.saved) return;
+  const dest = _current();
+  if (!dest || !dest.id || cf.results) { _status('Open the client’s folder first.', 'error'); return; }
+  _readDocs();
+  const docs = cf.docs.filter(d => d.checked);
+  if (!docs.length) { _status('Tick at least one document to save.', 'error'); return; }
+  if (docs.some(d => !d.filename)) { _status('Every document needs a file name.', 'error'); return; }
+  if (docs.some((d, i) => docs.findIndex(x => x.filename.toLowerCase() === d.filename.toLowerCase()) !== i)) { _status('Each document needs a different file name.', 'error'); return; }
+
+  cf.busy = true;
+  _el('cfSaveBtn').disabled = true;
+  _el('cfConflict').style.display = 'none';
+  const results = [];
+  try {
+    _flushLocalDraft();
+    _status('Checking the folder…', 'info');
+    const existing = await _children(dest.id);
+    const names = {};
+    existing.forEach(v => { names[v.name.toLowerCase()] = true; });
+    const clashes = docs.filter(d => names[d.filename.toLowerCase()]);
+    if (clashes.length && !cf.conflictChoice) { _status('', ''); _showConflict(clashes); return; }
+
+    // Remember this folder with the client's record, then save the record itself
+    try {
+      APP.setDest(
+        { id: dest.id, crumbs: cf.stack.map(c => ({ id: c.id || null, name: c.name, path: (typeof c.path === 'string' ? c.path : null), webUrl: c.webUrl || '', client: !!c.client })) },
+        _clientCrumb()   // the client's own folder: the key other apps use to recognise the same client
+      );
+    } catch(e){}
+    _status('Saving the form record (with signatures) to the cloud…', 'info');
+    try { if (typeof window.saveToSharePoint === 'function') await window.saveToSharePoint(); }
+    catch(e) { if (/Redirecting/.test(e.message || '')) throw e; console.warn('[ClientFolder] record save failed (continuing with PDF):', e); }
+
+    for (let i = 0; i < docs.length; i++) {
+      const d = docs[i];
+      const step = docs.length > 1 ? ' (' + (i + 1) + ' of ' + docs.length + ')' : '';
+      overlay.show('Creating PDF — ' + d.title + step, 'Laying out pages…');
+      const out = await odcRenderPdf([d.cardId], {
+        footerLabels: APP.footerLabels(),
+        onProgress: p => overlay.set(null, p.done < p.total ? 'Page ' + (p.done + 1) + ' of ' + p.total : 'Finishing…', p.done / p.total * 0.9)
+      });
+      overlay.set('Saving to SharePoint' + step + '…', d.filename + ' · ' + out.pages + ' pages · ' + _fmtSize(out.blob.size), 0.95);
+      const behavior = names[d.filename.toLowerCase()] ? (cf.conflictChoice || 'fail') : 'fail';
+      const item = await _upload(dest.id, d.filename, out.blob, behavior);
+      if (!item || !item.id) throw new Error('SharePoint did not confirm the upload of ' + d.filename);
+      if (typeof item.size === 'number' && item.size !== out.blob.size) throw new Error('Upload of ' + d.filename + ' looks incomplete (' + item.size + ' of ' + out.blob.size + ' bytes). Please save again.');
+      results.push({ d, item, pages: out.pages, size: out.blob.size });
+      overlay.set(null, null, 1);
+    }
+    overlay.hide();
+    cf.saved = true;
+    const where = cf.stack.map(c => c.name).join(' › ');
+    _status('✓ <strong>Saved to SharePoint</strong> — ' + _esc(where) + '<br>'
+      + results.map(r => '• <a href="' + _esc(r.item.webUrl || '#') + '" target="_blank" rel="noopener">' + _esc(r.item.name || r.d.filename) + '</a> — '
+          + r.pages + ' pages, ' + _fmtSize(r.size) + (r.d.sigs ? ', ' + r.d.sigs + ' signature' + (r.d.sigs > 1 ? 's' : '') : (r.d.slots ? ', unsigned' : ''))).join('<br>')
+      + (dest.webUrl ? '<br><a href="' + _esc(dest.webUrl) + '" target="_blank" rel="noopener">Open the folder in SharePoint ↗</a>' : '')
+      + (APP.afterSaveHtml ? APP.afterSaveHtml() : ''), 'ok');
+    _el('cfCancelBtn').textContent = 'Close';
+    _el('cfSaveBtn').textContent = '✓ Saved';
+    try { await _load(); } catch(e){}
+    if (typeof autoSaveDebounced === 'function') autoSaveDebounced();
+  } catch(e) {
+    overlay.hide();
+    if (/Graph 409/.test((e && e.message) || '')) {
+      cf.conflictChoice = null;
+      _status('', '');
+      _showConflict(docs.filter(d => !results.some(r => r.d === d)));
+    } else {
+      _handleErr(e, results.length ? 'Saved ' + results.length + ' file, then stopped' : 'Not saved');
+    }
+  } finally {
+    overlay.hide();
+    cf.busy = false;
+    _render();
+  }
+};
+
+// One set of click handlers for the folder list, breadcrumbs and conflict buttons
+document.addEventListener('click', async function(ev){
+  const back = _el('cfBackdrop');
+  if (!back || !back.classList.contains('show') || cf.busy) return;
+  const t = ev.target.closest ? ev.target.closest('[data-folder],[data-result],[data-crumb],[data-conflict],[data-applink]') : null;
+  if (!t || !back.contains(t)) return;
+  if (t.hasAttribute('data-applink')) { ev.preventDefault(); if (APP.onAppLink) APP.onAppLink(t.getAttribute('data-applink')); return; }
+  try {
+    if (t.hasAttribute('data-conflict')) {
+      cf.conflictChoice = t.getAttribute('data-conflict');
+      _el('cfConflict').style.display = 'none';
+      return window.cfSave();
+    }
+    cf.conflictChoice = null; _el('cfConflict').style.display = 'none';
+    if (cf.saved) { cf.saved = false; _el('cfSaveBtn').textContent = '☁️ Save to SharePoint'; _el('cfCancelBtn').textContent = 'Cancel'; }
+    _status('', '');
+    if (t.hasAttribute('data-folder')) {
+      const f = cf.items.find(v => v.id === t.getAttribute('data-folder'));
+      if (f) await _enter(f, false);
+    } else if (t.hasAttribute('data-result')) {
+      const r = cf.results[+t.getAttribute('data-result')];
+      if (!r) return;
+      cf.stack = []; cf.results = null;
+      if (r.parentPath) r.parentPath.split('/').forEach(seg => cf.stack.push({ id: null, name: seg, path: true }));
+      _fixPathCrumbs();
+      await _enter(r, true);
+    } else if (t.hasAttribute('data-crumb')) {
+      const idx = +t.getAttribute('data-crumb');
+      if (idx < 0) { cf.stack = []; await _load(); return; }
+      cf.stack = cf.stack.slice(0, idx + 1);
+      await _resolveCrumb(cf.stack[idx]);
+      await _load();
+    }
+  } catch(e) { _handleErr(e, 'Could not open that folder'); }
+});
+document.addEventListener('keydown', function(ev){
+  const back = _el('cfBackdrop');
+  if (!back || !back.classList.contains('show')) return;
+  if (ev.key === 'Escape') window.cfClose();
+  if (ev.key === 'Enter' && ev.target && ev.target.id === 'cfQuery') { ev.preventDefault(); window.cfSearch(); }
+});
+
+
+
+// ════════════════════════════════════════════════════════════════════════
+// SHARED BY THE ODC FORM APPS (Service Agreement · Onboarding forms)
+// Both apps sign in the same way and keep their records in the same place:
+//   Service Agreement Records/ODC-Agreement_<Client-Name>.json
+//   Service Agreement Records/Onboarding/ODC-Onboarding_<Client-Name>.json
+// A record's form values are stored by position, which another app cannot
+// read, so each cloud save also carries a named copy ("shared": the
+// data-shared fields — the same key is the same piece of participant
+// information in every app) and the client's SharePoint folder.
+// ════════════════════════════════════════════════════════════════════════
+const RECORDS_ROOT = 'Service Agreement Records';
+const APP_URLS = {
+  agreement:  'https://onedream-hy.github.io/contract-client/',
+  onboarding: 'https://onedream-hy.github.io/onboarding_new/',
+  careplan:   'https://onedream-hy.github.io/careplan/'
+};
+const KIND_LABEL = { agreement: 'Service Agreement', onboarding: 'onboarding forms' };
+
+function _toast(html, kind){
+  if (typeof _showToast === 'function') return _showToast(html, kind);
+  if (typeof _showRestoreToast === 'function') return _showRestoreToast(html, kind === 'error');
+}
+function _slug(name){ return String(name || '').trim().replace(/[\\/:*?"<>|#%&{}]/g, '').replace(/\s+/g, '-').slice(0, 60); }
+function _recordFile(kind, name){ const g = _slug(name); return g ? (kind === 'onboarding' ? 'ODC-Onboarding_' : 'ODC-Agreement_') + g + '.json' : ''; }
+function _recordPath(kind, file){ return RECORDS_ROOT + (kind === 'onboarding' ? '/Onboarding/' : '/') + file; }
+function _clientFromFile(file){
+  const m = /^ODC-(?:Agreement|Onboarding)_(.+)\.json$/i.exec(String(file || ''));
+  return (!m || /^Untitled-by-/i.test(m[1])) ? '' : m[1].replace(/-+/g, ' ').trim();
+}
+function _validRecordName(file){ return /\.json$/i.test(file || '') && !/[\\/]/.test(file); }
+
+// null when the record does not exist
+async function _recordMeta(kind, file){
+  const driveId = await _spGetDriveId();
+  try { return await (await _graph(G + '/drives/' + driveId + '/root:/' + _spEncodePath(_recordPath(kind, file)))).json(); }
+  catch(e) { if (/Graph 404/.test((e && e.message) || '')) return null; throw e; }
+}
+async function _readRecord(kind, file){
+  const meta = await _recordMeta(kind, file);
+  if (!meta) return null;
+  const dl = meta['@microsoft.graph.downloadUrl'] || meta['@content.downloadUrl'];
+  const res = dl ? await fetch(dl) : await _graph(G + '/drives/' + (await _spGetDriveId()) + '/items/' + meta.id + '/content');
+  if (!res.ok) throw new Error('Could not download ' + file + ' (' + res.status + ').');
+  return { meta: meta, data: await res.json() };
+}
+
+function _sharedMap(){
+  const out = {};
+  document.querySelectorAll('[data-shared]').forEach(el => {
+    if (el.type === 'checkbox' || el.type === 'radio') return;
+    const k = el.getAttribute('data-shared'), v = String(el.value || '').trim();
+    if (v && !out[k]) out[k] = v;
+  });
+  return out;
+}
+// Returns how many different pieces of information were filled in.
+function _applyShared(map, onlyEmpty){
+  if (!map) return 0;
+  const done = {};
+  document.querySelectorAll('[data-shared]').forEach(el => {
+    if (el.type === 'checkbox' || el.type === 'radio') return;
+    const k = el.getAttribute('data-shared'), v = map[k];
+    if (v == null || String(v).trim() === '') return;
+    if (onlyEmpty && String(el.value || '').trim() !== '') return;
+    if (el.value === String(v)) return;
+    el.value = String(v);
+    try { el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); } catch(e){}
+    done[k] = 1;
+  });
+  return Object.keys(done).length;
+}
+
+// "Jane Kim (daughter) 0412 345 678"  <->  { name, rel, phone }
+function _splitContact(text){
+  let t = String(text || '').trim();
+  const out = { name: '', rel: '', phone: '' };
+  if (!t) return out;
+  const ph = t.match(/\+?\(?\d[\d\s().\-]{6,}\d/);
+  if (ph) { out.phone = ph[0].trim(); t = t.replace(ph[0], ' '); }
+  const rel = t.match(/\(([^()\d]{2,40})\)/);
+  if (rel) { out.rel = rel[1].trim(); t = t.replace(rel[0], ' '); }
+  out.name = t.replace(/\b(ph|phone|mob|mobile|tel|m|p)\s*[:.]?\s*$/i, ' ')
+              .replace(/[\s,;:\/|–—-]+$/g, '').replace(/^[\s,;:\/|–—-]+/g, '').replace(/\s{2,}/g, ' ').trim();
+  return out;
+}
+function _joinContact(name, rel, phone){
+  name = String(name || '').trim(); rel = String(rel || '').trim(); phone = String(phone || '').trim();
+  return [name + (name && rel ? ' (' + rel + ')' : ''), phone].filter(Boolean).join(' ');
+}
+
+// A link from another app (…/?param=<record file>): remember it across the Microsoft sign-in.
+function _stashParam(param, key){
+  try { const v = new URLSearchParams(location.search).get(param); if (v) sessionStorage.setItem(key, v); } catch(e){}
+}
+function _takeParam(param, key){
+  let v = null;
+  try { v = sessionStorage.getItem(key); } catch(e){}
+  if (!v) return null;
+  if (typeof _spCurrentAccount !== 'function' || !_spCurrentAccount()) return null;     // keep it until signed in
+  try { sessionStorage.removeItem(key); } catch(e){}
+  try {
+    const u = new URL(location.href);
+    if (u.searchParams.has(param)) { u.searchParams.delete(param); history.replaceState(null, '', u.pathname + (u.search || '') + (u.hash || '')); }
+  } catch(e){}
+  return _validRecordName(v) ? v : null;
+}
+
+// Save this form's record to the cloud and return its file name (throws if it did not save).
+async function _saveRecordNow(){
+  const t0 = Date.now();
+  _flushLocalDraft();
+  await window.saveToSharePoint();
+  const last = window.__lastCloudSave;
+  if (!last || !last.name || last.at < t0) throw new Error('This form could not be saved to the cloud, so the other app has nothing to read yet.');
+  return last.name;
+}
+
+// Open another ODC app for the same client. The tab is opened inside the click
+// (otherwise the browser blocks it as a pop-up) and pointed at the app once
+// this form's record has been saved.
+async function _openApp(label, makeUrl){
+  if (typeof _spCurrentAccount !== 'function' || !_spCurrentAccount()) { _toast('Please sign in with your ODC Microsoft 365 account first.', 'error'); return; }
+  if (!APP.clientName()) { _toast('Enter the client’s <strong>name</strong> first — the two forms are matched by their saved records.', 'error'); return; }
+  let w = null;
+  try {
+    w = window.open('', '_blank');
+    if (w) w.document.write('<title>Opening…</title><p style="font-family:Arial,sans-serif;padding:28px;color:#333">Saving this form, then opening the ' + _esc(label) + '…</p>');
+  } catch(e){}
+  try {
+    const url = await makeUrl(await _saveRecordNow());
+    if (w && !w.closed) w.location.href = url;
+    else _toast('Your browser blocked the new tab. <a href="' + _esc(url) + '" target="_blank" rel="noopener"><strong>Open the ' + _esc(label) + ' →</strong></a>', 'info');
+  } catch(e) {
+    try { if (w && !w.closed) w.close(); } catch(_){}
+    if (/Redirecting for re-authentication/.test((e && e.message) || '')) return;
+    _toast('✗ ' + _esc((e && e.message) || e), 'error');
+  }
+}
+
+// Arriving from the other app with its record: open this client's form here if
+// there is one (filling only the blanks), otherwise start a new one with the
+// details filled in.  opts: { from, to, otherFile, link, toShared(data), afterApply(shared, onlyEmpty), adopt(data, otherFile) }
+async function _arriveFrom(opts){
+  const say = (m, k) => { if (typeof pickerSetStatus === 'function') pickerSetStatus(m, k); };
+  say('📥 Reading the ' + KIND_LABEL[opts.from] + ' record…', 'info');
+  let rec;
+  try { rec = await _readRecord(opts.from, opts.otherFile); }
+  catch(e) { say('Could not read ' + opts.otherFile + ': ' + ((e && e.message) || e), 'error'); return; }
+  if (!rec) { say('“' + opts.otherFile + '” was not found — it may have been renamed or deleted. Pick a record from the list below.', 'error'); return; }
+  const data = rec.data || {};
+  const got = opts.toShared(data, opts.otherFile);       // { shared, complete }
+  const shared = got.shared || {};
+  const name = shared.p_name || _clientFromFile(opts.otherFile);
+  const mine = (data.links && data.links[opts.to]) || _recordFile(opts.to, name);
+  let meta = null;
+  try { meta = (mine && _validRecordName(mine)) ? await _recordMeta(opts.to, mine) : null; } catch(e) { console.warn('[Link] lookup failed:', e); }
+  const partial = got.complete ? '' : '<br><small>That record was saved before the apps were linked, so only part of it could be read. Open it and press <strong>Save to Cloud</strong> once to bring everything across.</small>';
+  if (meta) {
+    await window.pickerOpenFile(meta.id, meta.name);
+    await _wait(250);
+    const n = _applyShared(shared, true) + (opts.afterApply ? opts.afterApply(shared, true) : 0);
+    opts.adopt(data, opts.otherFile, true);
+    _toast('Opened <strong>' + _esc(name || meta.name) + '</strong>’s ' + KIND_LABEL[opts.to] + '.' + (n ? '<br>' + n + ' blank detail' + (n === 1 ? ' was' : 's were') + ' filled in from the ' + KIND_LABEL[opts.from] + '.' : '') + partial, 'success');
+  } else {
+    if (typeof pickerWipeFormState === 'function') pickerWipeFormState();
+    if (typeof window.pickerClose === 'function') window.pickerClose();
+    const n = _applyShared(shared, false) + (opts.afterApply ? opts.afterApply(shared, false) : 0);
+    opts.adopt(data, opts.otherFile, false);
+    _toast('✓ New ' + KIND_LABEL[opts.to] + ' started for <strong>' + _esc(name || 'this client') + '</strong> — ' + n + ' detail' + (n === 1 ? '' : 's') + ' filled in from the ' + KIND_LABEL[opts.from] + '.' + partial, 'success');
+    if (typeof autoSaveDebounced === 'function') autoSaveDebounced();
+  }
+}
+
+// Open one of this app's own records named in the link (…/?open=<record file>).
+async function _openOwnRecord(kind, file){
+  const say = (m, k) => { if (typeof pickerSetStatus === 'function') pickerSetStatus(m, k); };
+  say('📥 Opening ' + file + '…', 'info');
+  try {
+    const meta = await _recordMeta(kind, file);
+    if (!meta) { say('“' + file + '” was not found in the saved forms — it may have been renamed or deleted. Pick it from the list below.', 'error'); return; }
+    await window.pickerOpenFile(meta.id, meta.name);
+  } catch(e) { say('Could not open ' + file + ': ' + ((e && e.message) || e), 'error'); }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// LINK TO THE SERVICE AGREEMENT APP
+//   onboarding_new/?open=<onboarding record>    opens that saved onboarding record
+//   onboarding_new/?sa=<agreement record>       opens this client's onboarding forms, or starts
+//                                               them with the agreement's details filled in
+//   contract-client/?ob=<onboarding record>     the same, the other way round
+// ════════════════════════════════════════════════════════════════════════
+const OPEN_KEY = 'odc_ob_open_record';
+const SA_KEY   = 'odc_ob_from_agreement';
+// Identifiers the other apps have no field for stay out of the named copy.
+const NOT_SHARED = { p_medicare: 1, p_pension: 1 };
+
+// Merged into the JSON record by saveToSharePoint(). No signatures.
+window.odcRecordExtras = function(){
+  const shared = _sharedMap();
+  Object.keys(NOT_SHARED).forEach(k => { delete shared[k]; });
+  return {
+    shared: shared,
+    participant: {
+      name: shared.p_name || '', preferredName: shared.p_prefName || '', dob: shared.p_dob || '', acId: shared.p_acId || '',
+      mobile: shared.p_mobile || '', email: shared.p_email || '',
+      street: shared.p_street || '', suburb: shared.p_suburb || '', postcode: shared.p_postcode || '',
+      nok: { name: shared.p_nokName || '', phone: shared.p_nokPhone || '', relationship: shared.p_nokRel || '' },
+      gp: { name: shared.p_gpName || '', medicalCentre: shared.p_medCentre || '', phone: shared.p_medCentrePhone || '' },
+      legalRep: shared.p_legal || ''
+    },
+    clientFolder: obLink.spClient || null,
+    spDest: obLink.spDest || null,
+    links: { agreement: obLink.agreementFile || null }
+  };
+};
+
+// "📄 Service Agreement" — save this record so the agreement app reads current details, then open it.
+window.odcOpenAgreement = function(){
+  return _openApp('Service Agreement', file => APP_URLS.agreement + '?ob=' + encodeURIComponent(file));
+};
+
+// Starting a new form, or opening another client's record, must not carry the previous client's links over.
+const _origWipe = window.pickerWipeFormState;
+if (typeof _origWipe === 'function') {
+  window.pickerWipeFormState = function(){
+    obLink = {};
+    _saveLink();
+    return _origWipe.apply(this, arguments);
+  };
+}
+const _origOpenFile = window.pickerOpenFile;
+if (typeof _origOpenFile === 'function') {
+  window.pickerOpenFile = async function(){
+    window.__odcLoadedRecord = null;
+    const out = await _origOpenFile.apply(this, arguments);
+    const d = window.__odcLoadedRecord;
+    if (d && typeof d === 'object') {
+      obLink = { spDest: d.spDest || null, spClient: d.clientFolder || null, agreementFile: (d.links && d.links.agreement) || null };
+      _saveLink();
+    }
+    return out;
+  };
+}
+
+// ── arriving from the agreement app ──
+function _sharedFromAgreement(data, file){
+  if (data.shared && typeof data.shared === 'object' && String(data.shared.p_name || '').trim()) return { shared: data.shared, complete: true };
+  // Agreements saved before the apps were linked: the first twelve boxes of that
+  // form have always been the participant's details — read them only if they look right.
+  const fileClient = _clientFromFile(file);
+  const v = Array.isArray(data.values) ? data.values.slice(0, 12) : [];
+  const tidy = x => String(x == null ? '' : x).toLowerCase().replace(/[^a-z0-9À-￿]+/g, '');
+  const ok = v.length === 12 && v.every(x => typeof x === 'string')
+          && v[0].trim() && fileClient && (tidy(v[0]).indexOf(tidy(fileClient)) === 0 || tidy(fileClient).indexOf(tidy(v[0])) === 0)
+          && (v[1] === '' || /^\d{4}-\d{2}-\d{2}$/.test(v[1]))
+          && (v[5] === '' || /@/.test(v[5]))
+          && (v[8] === '' || /^\d{3,4}$/.test(v[8].trim()));
+  if (!ok) return { shared: fileClient ? { p_name: fileClient } : {}, complete: false };
+  const shared = {};
+  ['p_name', 'p_dob', 'p_acId', 'p_mobile', 'p_phone', 'p_email', 'p_street', 'p_suburb', 'p_postcode'].forEach((k, i) => { if (v[i].trim()) shared[k] = v[i].trim(); });
+  const nok = _splitContact(v[9]);
+  if (nok.name) shared.p_nokName = nok.name;
+  if (nok.phone) shared.p_nokPhone = nok.phone;
+  if (nok.rel) shared.p_nokRel = nok.rel;
+  return { shared: shared, complete: false };   // the date, coordinator and representative sit further on and are not read
+}
+function _adoptAgreement(data, file, existing){
+  obLink.agreementFile = file;
+  // Same client, same SharePoint folder — no need to pick it again here
+  const dest = data.spDest || (data.doc && data.doc.__spDest) || null;
+  const folder = data.clientFolder || (data.doc && data.doc.__spClient) || null;
+  if (dest && dest.id && !obLink.spDest) obLink.spDest = dest;
+  if (folder && folder.id && !obLink.spClient) obLink.spClient = folder;
+  _saveLink();
+  if (!existing && typeof showForm === 'function' && typeof FORMS !== 'undefined') showForm(FORMS[0].id);
+}
+
+_stashParam('open', OPEN_KEY);
+_stashParam('sa', SA_KEY);
+const _origPickerOpen = window.pickerOpen;
+if (typeof _origPickerOpen === 'function') {
+  window.pickerOpen = async function(){
+    const out = await _origPickerOpen.apply(this, arguments);
+    try {
+      const own = _takeParam('open', OPEN_KEY);
+      if (own) await _openOwnRecord('onboarding', own);
+      else {
+        const sa = _takeParam('sa', SA_KEY);
+        if (sa) await _arriveFrom({ from: 'agreement', to: 'onboarding', otherFile: sa, toShared: _sharedFromAgreement, adopt: _adoptAgreement });
+      }
+    } catch(e) { console.warn('[Link] open-by-link failed:', e); }
+    return out;
+  };
+}
+
 })();
 </script>
 
