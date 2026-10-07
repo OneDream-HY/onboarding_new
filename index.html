@@ -1,6 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script>
+/* ODC: drop a half-finished Microsoft sign-in left in this tab by ANOTHER ODC app */
+(function(){ try {
+  var k = 'msal.interaction.status', v = sessionStorage.getItem(k);
+  if (v && v !== '7c1eb587-aeaf-43d9-855d-dba2ac0dc99d') sessionStorage.removeItem(k);
+} catch(e){} })();
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>One Dream Community – All Onboarding Forms</title>
