@@ -2156,6 +2156,26 @@ function _spCurrentAccount(){
   return accs && accs.length ? accs[0] : null;
 }
 
+// Microsoft renews the sign-in quietly in a hidden frame. When the earlier sign-in
+// has run out, or was made by another ODC app on this address, and the browser
+// blocks that hidden frame (Safari, private windows, third-party cookies off),
+// the renewal just times out ("monitor_window_timeout") instead of asking to
+// sign in again. Treat that the same as an expired session: go and sign in.
+function _odcSilentRenewFailed(e){
+  const t = String((e && e.errorCode) || '') + ' ' + String((e && e.message) || '');
+  return /monitor_window_timeout|monitor_popup_timeout|token_renewal_error|silent_sso_error|empty_window_error|hash_empty_error|hash_does_not_contain_known_properties|block_iframe_reload|no_tokens_found|no_account_error|token_refresh_required/i.test(t);
+}
+// Never bounce to Microsoft twice in a row — if it did not help, say so instead.
+function _odcReauthJustTried(){
+  try {
+    const now = Date.now(), last = +sessionStorage.getItem('odc_reauth_at') || 0;
+    if (now - last < 90000) return true;
+    sessionStorage.setItem('odc_reauth_at', String(now));
+  } catch(_){}
+  return false;
+}
+const ODC_REAUTH_FAILED = 'Microsoft sign-in could not be renewed automatically. Click “Sign out”, then sign in again.';
+
 async function _spAcquireToken(){
   if (_msal && typeof _msal.initialize === 'function') {
     try { await _msal.initialize(); } catch(e){}
@@ -2170,6 +2190,14 @@ async function _spAcquireToken(){
         || /interaction_required|consent_required|login_required/i.test(e.message || '')) {
       const r = await _msal.acquireTokenPopup({ scopes: SP_CONFIG.scopes, account });
       return r.accessToken;
+    }
+    if (_odcSilentRenewFailed(e)) {
+      if (_odcReauthJustTried()) throw new Error(ODC_REAUTH_FAILED);
+      // keep what is on the page in this browser — the sign-in page replaces it
+      try { if (typeof window.odcFlushDraft === 'function') window.odcFlushDraft(); } catch(_){}
+      alert('Microsoft 로그인 세션이 만료되었습니다.\n다시 로그인 페이지로 이동합니다. 로그인 후 작업을 다시 시도해주세요.');
+      await _msal.acquireTokenRedirect({ scopes: SP_CONFIG.scopes, account });
+      throw new Error('Redirecting for re-authentication');
     }
     throw e;
   }
@@ -3380,6 +3408,7 @@ function _readDocs(){
 function _flushLocalDraft(){
   try { APP.flushLocalDraft(); } catch(e) { console.warn('[ClientFolder] local draft flush failed:', e); }
 }
+window.odcFlushDraft = _flushLocalDraft;   // also used just before a forced Microsoft sign-in
 
 window.cfOpen = async function(){
   if (typeof _spCurrentAccount !== 'function' || !_spCurrentAccount()) {
