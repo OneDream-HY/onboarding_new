@@ -1810,7 +1810,7 @@ function _collectAllValues(){
   const out = [];
   const inputs = document.querySelectorAll('input, select, textarea');
   inputs.forEach(el => {
-    if (el.closest('#navBar') || el.closest('#printAllBackdrop') || el.closest('#saveBackdrop') || el.closest('#cfBackdrop')) return;
+    if (el.closest('#navBar') || el.closest('#printAllBackdrop') || el.closest('#saveBackdrop') || el.closest('#cfBackdrop') || el.closest('#aiBackdrop')) return;
     if (el.classList.contains('pa-pick')) return;
     if (el.tagName === 'INPUT' && (el.type === 'button' || el.type === 'submit' || el.type === 'file')) return;
     if (el.type === 'checkbox' || el.type === 'radio') out.push(el.checked ? 1 : 0);
@@ -1828,10 +1828,29 @@ function _collectSignatures(){
   });
   return sigs;
 }
-function _collectFull(){ return { v: _collectAllValues(), sigs: _collectSignatures() }; }
-function _restoreAllValues(arr){
+function _collectFull(){
+  const full = { v: _collectAllValues(), sigs: _collectSignatures() };
+  // Stable shared-key snapshot (p_name, p_dob, address, GP, NOK, ...) so other
+  // ODC apps (e.g. the Care Plan Workflow's "Import from Onboarding") can read
+  // this record without depending on positional values or generated keys.
+  try {
+    const sh = {};
+    document.querySelectorAll('[data-shared]').forEach(el => {
+      const k = el.dataset.shared;
+      if (!k) return;
+      const v = (el.type === 'checkbox' || el.type === 'radio') ? (el.checked ? '1' : '') : (el.value || '');
+      if (v && !sh[k]) sh[k] = v;
+    });
+    full.shared = sh;
+  } catch(e){}
+  // Named copy of every field (see IMPORT FROM MEETING) — survives fields being added or moved
+  try { if (typeof window._odcCollectKeyed === 'function') full.k = window._odcCollectKeyed(); } catch(e){}
+  try { if (typeof window._odcAiState === 'function') full.ai = window._odcAiState(); } catch(e){}
+  return full;
+}
+function _restoreAllValues(arr, keyed, aiState){
   const inputs = Array.from(document.querySelectorAll('input, select, textarea')).filter(el => {
-    if (el.closest('#navBar') || el.closest('#printAllBackdrop') || el.closest('#saveBackdrop') || el.closest('#cfBackdrop')) return false;
+    if (el.closest('#navBar') || el.closest('#printAllBackdrop') || el.closest('#saveBackdrop') || el.closest('#cfBackdrop') || el.closest('#aiBackdrop')) return false;
     if (el.classList.contains('pa-pick')) return false;
     if (el.tagName === 'INPUT' && (el.type === 'button' || el.type === 'submit' || el.type === 'file')) return false;
     return true;
@@ -1842,6 +1861,9 @@ function _restoreAllValues(arr){
     if (el.type === 'checkbox' || el.type === 'radio') el.checked = (arr[i] === 1);
     else el.value = arr[i] == null ? '' : String(arr[i]);
   }
+  // Records saved since Oct 2026 also carry each value by name — those win over position
+  try { if (keyed && typeof window._odcRestoreKeyed === 'function') window._odcRestoreKeyed(keyed); } catch(e){ console.warn('Keyed restore failed:', e); }
+  try { if (typeof window._odcAiRestore === 'function') window._odcAiRestore(aiState || null); } catch(e){}
 }
 // Restore signatures from a {slotId: dataUrl} map — paints them into slots using existing helper
 function _restoreSignatures(sigs){
@@ -1873,7 +1895,7 @@ function autoSaveDebounced(){
   _saveTimer = setTimeout(() => {
     try {
       const full = _collectFull();
-      const data = { values: full.v, sigs: full.sigs, savedAt: new Date().toISOString() };
+      const data = { values: full.v, keyed: full.k, ai: full.ai, sigs: full.sigs, savedAt: new Date().toISOString() };
       localStorage.setItem(SAVE_KEY, JSON.stringify(data));
     } catch(e){}
   }, 600);
@@ -1885,7 +1907,7 @@ document.addEventListener('change', autoSaveDebounced);
 // Priority: URL hash (#s=...) wins over localStorage. Backward-compat: old saves
 // were a flat array (just form values, no signatures); new saves are {v, sigs}.
 function loadSavedData(){
-  let arr = null, sigs = null, source = '', isLegacy = false;
+  let arr = null, sigs = null, source = '', isLegacy = false, keyed = null, aiSt = null;
   const h = location.hash;
   // ── New compressed format: #z=<lz-string-encoded> ──
   if (h && h.indexOf('#z=') === 0 && typeof LZString !== 'undefined') {
@@ -1915,14 +1937,14 @@ function loadSavedData(){
       const raw = localStorage.getItem(SAVE_KEY);
       if (raw) {
         const data = JSON.parse(raw);
-        if (data && Array.isArray(data.values)) { arr = data.values; sigs = data.sigs || null; source = 'this browser'; }
+        if (data && Array.isArray(data.values)) { arr = data.values; sigs = data.sigs || null; keyed = data.keyed || null; aiSt = data.ai || null; source = 'this browser'; }
       }
     } catch(e){ console.warn('localStorage restore failed:', e); }
   }
   if (!arr) return;
   // Defer until forms are rendered + signatures restored
   setTimeout(() => {
-    _restoreAllValues(arr);
+    _restoreAllValues(arr, keyed, aiSt);
     if (sigs) _restoreSignatures(sigs);
     const sigCount = sigs ? Object.keys(sigs).length : 0;
     console.log('Restored from:', source, '·', arr.length, 'fields ·', sigCount, 'signatures');
@@ -1979,7 +2001,7 @@ function closeSaveModal(){
 function manualSave(){
   try {
     const full = _collectFull();
-    const data = { values: full.v, sigs: full.sigs, savedAt: new Date().toISOString() };
+    const data = { values: full.v, keyed: full.k, ai: full.ai, sigs: full.sigs, savedAt: new Date().toISOString() };
     localStorage.setItem(SAVE_KEY, JSON.stringify(data));
     document.getElementById('lastSavedAt').textContent = 'Last saved: ' + new Date(data.savedAt).toLocaleString();
     flashSaved();
@@ -2022,6 +2044,7 @@ window.clearAllAndReload = function(reload){
     : 'Clear ALL information in this browser?\n\n• Form data\n• Signatures\n• Saved progress\n\nThe page will NOT reload — the form will simply be emptied.\n\nThis cannot be undone.';
   if (!confirm(msg)) return;
   clearLocalSave();
+  try { if (typeof window._odcAiClearAll === 'function') window._odcAiClearAll(); } catch(e){}
   if (reload) {
     // Strip any #s= or #z= hash so we don't immediately re-restore from URL
     history.replaceState(null, '', location.pathname + location.search);
@@ -2337,6 +2360,9 @@ window.saveToSharePoint = async function(){
       savedAt: new Date().toISOString(),
       savedBy: savedBy,
       values: full.v,
+      keyed: full.k,
+      shared: full.shared,
+      ai: full.ai,
       sigs: full.sigs
     };
     // Named participant details, client folder and Service Agreement link (see odcRecordExtras)
@@ -2506,10 +2532,10 @@ window.pickerOpenFile = async function(itemId, name){
     if (!arr) { pickerSetStatus('Invalid file format.', 'error'); return; }
     // Wipe local state for a clean restore
     pickerWipeFormState();
-    _restoreAllValues(arr);
+    _restoreAllValues(arr, data && data.keyed, data && data.ai);
     if (sigs) _restoreSignatures(sigs);
     try {
-      localStorage.setItem(SAVE_KEY, JSON.stringify({ values: arr, sigs: sigs || {}, savedAt: new Date().toISOString() }));
+      localStorage.setItem(SAVE_KEY, JSON.stringify({ values: arr, keyed: (data && data.keyed) || null, ai: (data && data.ai) || null, sigs: sigs || {}, savedAt: new Date().toISOString() }));
     } catch(e){}
     window.__currentPickerFile = { itemId, name };
     window.pickerClose();
@@ -2545,7 +2571,7 @@ function pickerWipeFormState(){
       }
     });
     document.querySelectorAll('input, select, textarea').forEach(el => {
-      if (el.closest('#navBar') || el.closest('#printAllBackdrop') || el.closest('#saveBackdrop') || el.closest('#cfBackdrop')) return;
+      if (el.closest('#navBar') || el.closest('#printAllBackdrop') || el.closest('#saveBackdrop') || el.closest('#cfBackdrop') || el.closest('#aiBackdrop')) return;
       if (el.closest('#clientPicker') || el.closest('#loginGate')) return;
       if (el.classList.contains('pa-pick') || el.classList.contains('fp-pick')) return;
       if (el.tagName === 'INPUT' && (el.type === 'button' || el.type === 'submit' || el.type === 'file')) return;
@@ -2559,6 +2585,7 @@ function pickerWipeFormState(){
       try { img.removeAttribute('data-url'); img.src = ''; img.style.display = 'none'; } catch(e){}
     });
   } catch(e) { console.warn('[Picker] wipe failed:', e); }
+  try { if (typeof window._odcAiClearAll === 'function') window._odcAiClearAll(); } catch(e){}
   window.__currentPickerFile = null;
 }
 
@@ -2844,7 +2871,7 @@ const APP = {
   noSigHint: 'To include signatures, close this and click each signature box on the forms to sign, then save.',
   flushLocalDraft(){
     const full = _collectFull();
-    localStorage.setItem(SAVE_KEY, JSON.stringify({ values: full.v, sigs: full.sigs, savedAt: new Date().toISOString() }));
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ values: full.v, keyed: full.k, ai: full.ai, sigs: full.sigs, savedAt: new Date().toISOString() }));
     _saveLink();
   },
   getDest(){ return obLink.spDest || null; },
@@ -3893,6 +3920,664 @@ if (typeof _origPickerOpen === 'function') {
   };
 }
 
+})();
+</script>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     IMPORT FROM MEETING  (added Oct 2026)
+     1. Every form field gets a stable name (data-key) built from its form,
+        section heading, row label and option label — so values can be
+        saved and filled by name, not by position.
+     2. "🎙️ Import from Meeting" uploads the meeting recording to ODC's Azure
+        Function (Azure AI Speech + Azure OpenAI, Australia East), which returns
+        the answers; filled fields are marked yellow until a staff member checks
+        them. A transcript or a JSON result can also be pasted instead.
+     Saved records now carry  keyed: {name: value}  and  ai: {...}  next to the
+     old positional  values: [...]  array, so older records still open.
+═══════════════════════════════════════════════════════════════════════ -->
+<style>
+  .odc-ai { background:#fff4b8 !important; box-shadow:0 0 0 2px #f0c419 !important; border-radius:3px; cursor:help; }
+  label.odc-ai { padding:1px 4px; }
+  body.odc-pdf .odc-ai { background:none !important; box-shadow:none !important; }
+  @media print { .odc-ai { background:none !important; box-shadow:none !important; } #aiBar, #aiBackdrop { display:none !important; } }
+
+  .ai-backdrop { display:none; position:fixed; inset:0; background:rgba(20,30,20,.55); z-index:10060; align-items:flex-start; justify-content:center; overflow-y:auto; padding:28px 12px; }
+  .ai-backdrop.show { display:flex; }
+  .ai-card { background:#fff; border-radius:12px; width:100%; max-width:680px; box-shadow:0 18px 50px rgba(0,0,0,.3); padding:20px 22px 18px; font-size:.88rem; color:#243024; }
+  .ai-head { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .ai-head h3 { margin:0; font-size:1.08rem; font-weight:700; color:#7a5a00; }
+  .ai-x { background:none; border:none; font-size:1.6rem; line-height:1; cursor:pointer; color:#666; }
+  .ai-step { font-weight:700; color:#3a6330; margin:14px 0 6px; font-size:.88rem; }
+  .ai-step span { font-weight:400; color:#666; }
+  .ai-card textarea { width:100%; min-height:150px; border:1px solid #cfd6c8; border-radius:7px; padding:8px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:.78rem; box-sizing:border-box; }
+  .ai-row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .ai-msg { margin-top:10px; padding:8px 11px; border-radius:7px; font-size:.82rem; display:none; }
+  .ai-msg.err { display:block; background:#fef1ee; border:1px solid #e29a86; color:#7a2a14; }
+  .ai-msg.ok  { display:block; background:#eef9ea; border:1px solid #9cc28c; color:#2f4a2a; }
+
+  #aiBar { display:none; position:fixed; left:50%; transform:translateX(-50%); bottom:14px; z-index:9990; background:#fffbe6; border:1px solid #e3c34a; border-radius:10px; box-shadow:0 8px 26px rgba(0,0,0,.18); padding:9px 12px; font-size:.84rem; color:#4d3b00; max-width:calc(100vw - 24px); }
+  #aiBar.show { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  #aiBar button { font-size:.8rem; padding:4px 10px; border-radius:6px; cursor:pointer; border:1px solid #c9a227; background:#fff; color:#5a4500; }
+  #aiBar button.primary { background:#4a7a3c; border-color:#4a7a3c; color:#fff; }
+  #aiList { display:none; position:fixed; left:50%; transform:translateX(-50%); bottom:64px; z-index:9991; width:min(560px, calc(100vw - 24px)); max-height:55vh; overflow-y:auto; background:#fff; border:1px solid #e3c34a; border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,.2); padding:12px 14px; font-size:.82rem; }
+  #aiList.show { display:block; }
+  #aiList h4 { margin:10px 0 4px; font-size:.85rem; color:#7a5a00; }
+  #aiList h4:first-child { margin-top:0; }
+  #aiList li { margin:3px 0; }
+  #aiList a { color:#0b4a8a; cursor:pointer; text-decoration:underline; }
+</style>
+
+<div id="aiBackdrop" class="ai-backdrop no-print" onclick="if(event.target===this && !window.__aiBusy)aiClose()">
+  <div class="ai-card">
+    <div class="ai-head">
+      <h3>🎙️ Import from Meeting</h3>
+      <button class="ai-x" type="button" onclick="if(!window.__aiBusy)aiClose()">&times;</button>
+    </div>
+    <div style="color:#555; font-size:.82rem; margin-top:4px;">Upload the meeting recording. It is turned into text and the answers are filled in for you — everything filled is marked <span class="odc-ai" style="cursor:default">yellow</span> until you check it.</div>
+
+    <div id="aiNotSetUp" class="ai-msg err" style="display:none">Recording upload is not switched on yet — the administrator needs to finish the Azure setup (MEETING_AI_URL). You can still use “Other options” below.</div>
+
+    <div class="ai-step">Meeting recording</div>
+    <input type="file" id="aiAudio" accept="audio/*,.m4a,.mp3,.wav,.ogg,.oga,.opus,.webm,.aac,.flac,.amr,.wma" style="font-size:.86rem; width:100%;">
+    <div style="color:#777; font-size:.76rem; margin-top:5px;">MP3, M4A, WAV, OGG or WebM · up to 100 MB (about 1–2 hours) · processed by ODC's Microsoft Azure in Australia; the recording and transcript are not kept on the server.</div>
+    <label style="display:flex; gap:7px; align-items:center; margin-top:10px; font-size:.84rem; cursor:pointer;">
+      <input type="checkbox" id="aiOnlyEmpty" checked> Only fill blank fields (keep anything already typed)
+    </label>
+
+    <div id="aiProgress" style="display:none; margin-top:12px; padding:10px 12px; border:1px solid #e3e8dc; border-radius:8px; background:#f8faf5; font-size:.84rem; line-height:1.8;">
+      <div id="aiStep1">⏳ Uploading and turning speech into text…</div>
+      <div id="aiStep2" style="color:#999">○ Filling in the forms</div>
+      <div id="aiElapsed" style="color:#888; font-size:.76rem;"></div>
+    </div>
+    <div id="aiMsg" class="ai-msg"></div>
+    <div id="aiTranscriptRow" style="display:none; margin-top:8px; font-size:.8rem;"><a id="aiTranscriptLink" href="#" download="transcript.txt" style="color:#0b4a8a;">⬇ Download the transcript (.txt)</a> <span style="color:#888">— only if you need to keep it with the client's records</span></div>
+
+    <details id="aiMore" style="margin-top:14px; font-size:.84rem;">
+      <summary style="cursor:pointer; color:#3a6330; font-weight:600;">Other options — paste a transcript or an AI result</summary>
+      <div style="color:#666; font-size:.78rem; margin:6px 0;">Paste a transcript (e.g. from Teams) and it is filled the same way, or paste a JSON result made with the instructions below.</div>
+      <textarea id="aiInput" placeholder="Paste a meeting transcript, or a JSON result { &quot;fields&quot;: { … } }"></textarea>
+      <div class="ai-row" style="margin-top:6px;">
+        <input type="file" id="aiFile" accept=".json,.txt,.vtt,application/json,text/plain" style="font-size:.8rem;" onchange="aiReadFile(this)">
+        <button type="button" class="btn-odc" onclick="aiApplyFromInput()">Fill from this text</button>
+      </div>
+      <div class="ai-row" style="margin-top:8px;">
+        <button type="button" class="btn-odc-outline" onclick="aiCopyPrompt()">📋 Copy AI instructions</button>
+        <button type="button" class="btn-odc-outline" onclick="aiDownloadSchema()">⬇ Field list (.json)</button>
+      </div>
+    </details>
+
+    <div style="display:flex; justify-content:flex-end; gap:8px; padding-top:12px; margin-top:12px; border-top:1px solid #eee;">
+      <button type="button" class="btn-odc-outline" id="aiCancelBtn" onclick="aiClose()">Cancel</button>
+      <button type="button" class="btn-odc" id="aiGoBtn" onclick="aiUploadAndFill()">🎙️ Upload &amp; fill</button>
+    </div>
+  </div>
+</div>
+
+<div id="aiBar" class="no-print">
+  <span id="aiBarText"></span>
+  <button type="button" onclick="aiToggleList()">Show list</button>
+  <button type="button" class="primary" onclick="aiConfirmAll()" title="Remove all yellow marks — you have checked every filled field">✓ All checked</button>
+</div>
+<div id="aiList" class="no-print"></div>
+
+<script>
+(function(){
+'use strict';
+
+// ── Azure Function that turns a recording into answers (see the setup guide).
+//    Paste the Function App URL here after deploying, e.g. 'https://odc-meeting-ai.azurewebsites.net/api'
+const MEETING_AI_URL = '';
+
+// ── 1. Stable field names ───────────────────────────────────────────────
+const SKIP_IN = '#navBar, #printAllBackdrop, #saveBackdrop, #cfBackdrop, #aiBackdrop, #clientPicker, #loginGate';
+const HEAD_SEL = '.sub-h, .doc-section-h';
+
+function slug(s, max){
+  s = String(s || '').toLowerCase()
+    .replace(/&amp;/g, '&').replace(/[’']/g, '')
+    .replace(/^\s*\d+(\s*[–—-]\s*\d+)?\.\s+/, '')   // "3 – 5. History…" → "History…" (not "4-Wheel")
+    .replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  if (max && s.length > max) s = s.slice(0, max).replace(/_+[^_]*$/, '') || s.slice(0, max);
+  return s;
+}
+function clean(t){ return String(t || '').replace(/\s+/g, ' ').trim(); }
+function ownText(node, el){        // text of a cell/label without the text of the inputs inside it
+  const c = node.cloneNode(true);
+  c.querySelectorAll('input, select, textarea, button, [data-sigid]').forEach(x => x.remove());
+  return clean(c.textContent);
+}
+function isChoice(el){ return el.type === 'checkbox' || el.type === 'radio'; }
+function fieldEls(scope){
+  return Array.from((scope || document).querySelectorAll('.form-section input, .form-section select, .form-section textarea')).filter(el => {
+    if (el.closest(SKIP_IN)) return false;
+    if (el.classList.contains('nosave') || el.classList.contains('pa-pick') || el.classList.contains('fp-pick')) return false;
+    if (el.tagName === 'INPUT' && ['button','submit','file','hidden','reset','image'].indexOf(el.type) !== -1) return false;
+    return true;
+  });
+}
+
+function sectionOf(el){
+  const sec = el.closest('.form-section');
+  let n = el;
+  while (n && n !== sec) {
+    let s = n.previousElementSibling;
+    while (s) {
+      if (s.matches && s.matches(HEAD_SEL)) return clean(s.textContent);
+      const inner = s.querySelectorAll ? s.querySelectorAll(HEAD_SEL) : [];
+      if (inner.length) return clean(inner[inner.length - 1].textContent);
+      s = s.previousElementSibling;
+    }
+    n = n.parentElement;
+  }
+  return '';
+}
+function headerRow(table){
+  if (!table) return null;
+  const h = table.querySelector('thead tr');
+  if (h) return h;
+  const first = table.querySelector('tr');
+  return (first && first.querySelector('th')) ? first : null;
+}
+function columnHeader(td){
+  const tr = td.parentElement, table = td.closest('table'), head = headerRow(table);
+  if (!head || head === tr) return '';
+  const th = head.children[Array.prototype.indexOf.call(tr.children, td)];
+  return th ? clean(th.textContent) : '';
+}
+function rowOf(el){
+  const td = el.closest('td, th');
+  if (!td) return '';
+  // nearest cell to the left that has words in it (a .lbl cell, or the item / question)
+  let s = td.previousElementSibling;
+  while (s) { const t = ownText(s); if (t && t !== '↳') return t; s = s.previousElementSibling; }
+  return columnHeader(td);
+}
+function optionOf(el){
+  const lab = el.closest('label');
+  if (lab) return ownText(lab);
+  const td = el.closest('td');               // tick boxes under a "Yes | No | N/A" heading
+  if (td && isChoice(el) && !ownText(td)) return columnHeader(td);
+  return '';
+}
+function formOf(el){ const s = el.closest('.form-section'); return s ? s.id.replace(/^form-/, '') : ''; }
+function formLabel(id){
+  const f = (typeof FORMS !== 'undefined') ? FORMS.find(x => x.id === id) : null;
+  return f ? f.label.replace(/^[^\w]+/, '').trim() : id;
+}
+
+let _keysBuilt = false;
+function buildKeys(){
+  const used = {};
+  const els = fieldEls();
+  _radioBases.clear();
+  // Rows that hold yes/no or tick-box options: a typed box in the same row is the "details" box
+  const choiceCtx = new Set();
+  els.forEach(el => { if (isChoice(el)) choiceCtx.add(formOf(el) + '|' + sectionOf(el) + '|' + rowOf(el)); });
+  els.forEach(el => {
+    const form = formOf(el), sec = sectionOf(el), row = rowOf(el), opt = isChoice(el) ? optionOf(el) : '';
+    let parts = [form, slug(sec, 32), slug(row, 40)].filter(Boolean);
+    let group = parts.join('.');
+    if (isChoice(el)) {
+      if (opt) parts.push(slug(opt, 30) || 'option');
+    } else if (choiceCtx.has(form + '|' + sec + '|' + row)) {
+      parts.push('details');
+    } else if (!row && el.placeholder) {
+      parts.push(slug(el.placeholder, 30));
+    }
+    let key = parts.join('.') || (form + '.field');
+    if (used[key]) { used[key]++; key = key + '_' + used[key]; } else used[key] = 1;
+    el.dataset.key = key;
+    el.dataset.keyGroup = isChoice(el) ? (el.type === 'radio' && el.name ? group + '#r:' + el.name : group) : '';
+    if (el.type === 'radio') _radioBases.add(group);
+    el.dataset.keyLabel = [sec, row, opt].filter(Boolean).join(' › ');
+  });
+  _keysBuilt = true;
+}
+window.odcBuildFieldKeys = buildKeys;
+
+// ── 2. Keyed save / restore (used by _collectFull and _restoreAllValues) ─
+window._odcCollectKeyed = function(){
+  if (!_keysBuilt) buildKeys();
+  const out = {};
+  fieldEls().forEach(el => {
+    const k = el.dataset.key; if (!k) return;
+    out[k] = isChoice(el) ? (el.checked ? 1 : 0) : (el.value || '');
+  });
+  return out;
+};
+window._odcRestoreKeyed = function(map){
+  if (!map || typeof map !== 'object' || !Object.keys(map).length) return 0;
+  if (!_keysBuilt) buildKeys();
+  let n = 0;
+  fieldEls().forEach(el => {
+    const k = el.dataset.key; if (!k || !(k in map)) return;   // a field the record doesn't know keeps its positional value
+    const v = map[k];
+    if (isChoice(el)) el.checked = (v === 1 || v === true);
+    else el.value = (v == null) ? '' : String(v);
+    n++;
+  });
+  return n;
+};
+
+// ── 3. Field list (what Claude may fill) ────────────────────────────────
+function schema(){
+  if (!_keysBuilt) buildKeys();
+  const out = [], seen = new Set();
+  fieldEls().forEach(el => {
+    const form = formOf(el);
+    if (el.dataset.shared && !isChoice(el)) {
+      const k = el.dataset.shared;
+      if (seen.has(k)) return; seen.add(k);
+      out.push({ key: k, form: 'All forms (shared)', label: el.dataset.keyLabel || k, type: el.type === 'date' ? 'date' : 'text' });
+      return;
+    }
+    if (isChoice(el)) {
+      const g = el.dataset.keyGroup;
+      const groupKey = g.split('#')[0];
+      const members = fieldEls().filter(x => x.dataset.keyGroup === g);
+      const labelled = members.every(x => optionOf(x));
+      if (members.length > 1 && labelled) {
+        if (seen.has(g)) return; seen.add(g);
+        const isRadio = el.type === 'radio';
+        const lbl = [sectionOf(el), rowOf(el)].filter(Boolean).join(' › ');
+        out.push({ key: uniqGroupKey(groupKey, g), form: formLabel(form), label: lbl,
+                   type: isRadio ? 'choice' : 'multi', options: members.map(x => optionOf(x)) });
+      } else {
+        out.push({ key: el.dataset.key, form: formLabel(form), label: el.dataset.keyLabel, type: 'tick' });
+      }
+      return;
+    }
+    out.push({ key: el.dataset.key, form: formLabel(form), label: el.dataset.keyLabel,
+               type: el.tagName === 'TEXTAREA' ? 'longtext' : (el.type === 'date' ? 'date' : 'text') });
+  });
+  return out;
+}
+// A radio group and a tick-box group can share a row ("Catheter: Yes/No + IDC/SPC") — keep their keys apart
+const _groupKeyMap = {};
+const _radioBases = new Set();
+function uniqGroupKey(base, g){
+  if (_groupKeyMap[g]) return _groupKeyMap[g];
+  const taken = new Set(Object.values(_groupKeyMap));
+  let k = base, i = 2;
+  if (g.indexOf('#r:') === -1 && _radioBases.has(base)) k = base + '.options';   // "Catheter: Yes/No" + "IDC/SPC"
+  while (taken.has(k)) k = base + '_' + (i++);
+  _groupKeyMap[g] = k;
+  return k;
+}
+function groupMembers(key){
+  const g = Object.keys(_groupKeyMap).find(x => _groupKeyMap[x] === key);
+  return g ? fieldEls().filter(x => x.dataset.keyGroup === g) : null;
+}
+window.odcFieldSchema = schema;
+
+function promptText(){
+  const rows = schema().map(f => {
+    let t = f.key + ' | ' + f.form + ' | ' + (f.label || '') + ' | ' + f.type;
+    if (f.options) t += ' | ' + f.options.join(' / ');
+    return t;
+  });
+  return [
+    'You are filling One Dream Community onboarding forms from a client meeting transcript.',
+    '',
+    'Return ONLY a JSON object in this shape:',
+    '{',
+    '  "client": "<client full name>",',
+    '  "fields":   { "<key>": <value>, ... },',
+    '  "evidence": { "<key>": "<short quote from the transcript, with timestamp if available>", ... },',
+    '  "check":    [ { "key": "<key>", "reason": "<what was unclear>" }, ... ],',
+    '  "missing":  [ "<topic that was not discussed>", ... ]',
+    '}',
+    '',
+    'Rules:',
+    '- Use only the keys in the field list below. Do not invent keys.',
+    '- Fill a field only when the meeting clearly states it. Never guess or infer.',
+    '- If something was said but is unclear or contradictory, leave it out of "fields" and add it to "check".',
+    '- Value formats: text/longtext = string; date = YYYY-MM-DD; choice = exactly one of the listed options;',
+    '  multi = an array of the listed options that apply; tick = true.',
+    '- Give an "evidence" quote for every field you fill.',
+    '- In "missing", list topics from the field list that the meeting did not cover (e.g. "GP details", "Falls history").',
+    '- Never include a key safe lock code, card PIN or password, even if it was said aloud.',
+    '- Do not fill consent decisions or signatures — staff complete those with the client.',
+    '',
+    'Field list (key | form | label | type | options):',
+    rows.join('\n')
+  ].join('\n');
+}
+
+window.aiCopyPrompt = function(){
+  const t = promptText();
+  const done = () => aiMsg('✓ Instructions copied (' + schema().length + ' fields). Paste them into an AI chat together with the transcript.', 'ok');
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(done, () => fallbackCopy(t, done));
+  else fallbackCopy(t, done);
+};
+function fallbackCopy(t, done){
+  const ta = document.createElement('textarea');
+  ta.value = t; ta.style.cssText = 'position:fixed;left:-9999px;top:0;';
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); done(); } catch(e) { aiMsg('Could not copy — use “Field list (.json)” instead.', 'err'); }
+  ta.remove();
+}
+window.aiDownloadSchema = function(){
+  const blob = new Blob([JSON.stringify({ app: 'ODC All Onboarding Forms', generatedAt: new Date().toISOString(), instructions: promptText().split('\n\nField list')[0], fields: schema() }, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'ODC-Onboarding_field-list.json';
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+};
+
+// ── 4. Import ───────────────────────────────────────────────────────────
+function aiMsg(t, kind){ const m = document.getElementById('aiMsg'); m.className = 'ai-msg ' + (kind || ''); m.innerHTML = t; }
+window.aiOpen = function(){
+  if (!_keysBuilt) buildKeys();
+  aiMsg('', '');
+  if (!window.__aiBusy) { document.getElementById('aiProgress').style.display = 'none'; document.getElementById('aiTranscriptRow').style.display = 'none'; }
+  document.getElementById('aiNotSetUp').style.display = MEETING_AI_URL ? 'none' : 'block';
+  document.getElementById('aiBackdrop').classList.add('show'); document.body.style.overflow = 'hidden';
+};
+window.aiClose = function(){ document.getElementById('aiBackdrop').classList.remove('show'); document.body.style.overflow = ''; };
+window.aiReadFile = function(inp){
+  const f = inp.files && inp.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => { document.getElementById('aiInput').value = String(r.result || ''); aiMsg('Loaded <strong>' + esc(f.name) + '</strong> — press “Fill from this text”.', 'ok'); };
+  r.readAsText(f); inp.value = '';
+};
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function parseLoose(text){
+  let t = String(text || '').trim();
+  const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/i); if (fence) t = fence[1].trim();
+  const a = t.indexOf('{'), b = t.lastIndexOf('}');
+  if (a === -1 || b <= a) throw new Error('No JSON object found.');
+  return JSON.parse(t.slice(a, b + 1));
+}
+const truthy = v => v === true || v === 1 || /^(true|yes|y|1|ticked|checked)$/i.test(String(v).trim());
+const sameOpt = (a, b) => slug(a) === slug(b) || (slug(a) === 'other' && slug(b).indexOf('other') === 0) || (slug(b) === 'other' && slug(a).indexOf('other') === 0);
+
+function aiDone(res, extra){
+  aiClose();
+  let msg = '🎙️ Filled <strong>' + res.filled + '</strong> field' + (res.filled === 1 ? '' : 's') + ' from the meeting.' + (extra || '');
+  if (res.skipped) msg += '<br>' + res.skipped + ' left as they were (already filled).';
+  if (res.unknown.length) msg += '<br>⚠ ' + res.unknown.length + ' not recognised: ' + esc(res.unknown.slice(0, 6).join(', ')) + (res.unknown.length > 6 ? '…' : '');
+  msg += '<br>Check the <span style="background:#fff4b8;padding:0 3px">yellow</span> fields before signing.';
+  if (typeof _showRestoreToast === 'function') _showRestoreToast(msg, !!res.unknown.length);
+}
+window.aiApplyFromInput = async function(){
+  const text = document.getElementById('aiInput').value;
+  let data = null;
+  try { data = parseLoose(text); } catch(e) { data = null; }
+  if (data && typeof data === 'object') {
+    const res = aiApply(data, document.getElementById('aiOnlyEmpty').checked);
+    if (!res.filled && !res.unknown.length) { aiMsg('Nothing to fill — the result had no fields.', 'err'); return; }
+    aiDone(res); return;
+  }
+  if (String(text || '').trim().length < 40) { aiMsg('Paste a meeting transcript or a JSON result first.', 'err'); return; }
+  if (!MEETING_AI_URL) { aiMsg('Filling from a transcript needs the Azure setup to be finished (MEETING_AI_URL). For now, paste a JSON result instead.', 'err'); return; }
+  await aiRun(null, text);
+};
+
+// ── Upload a recording → Azure (speech to text, then form answers) → fill ──
+window.__aiBusy = false;
+let _aiTimer = null, _aiTranscriptUrl = null;
+function aiStep(id, state, text){
+  const el = document.getElementById(id);
+  el.style.color = state === 'wait' ? '#999' : (state === 'err' ? '#a0331a' : '');
+  el.textContent = (state === 'done' ? '✓ ' : state === 'run' ? '⏳ ' : state === 'err' ? '✗ ' : '○ ') + text;
+}
+function aiBusy(on){
+  window.__aiBusy = on;
+  document.getElementById('aiGoBtn').disabled = on;
+  document.getElementById('aiCancelBtn').disabled = on;
+  document.getElementById('aiGoBtn').textContent = on ? 'Working…' : '🎙️ Upload & fill';
+  clearInterval(_aiTimer);
+  if (on) {
+    const t0 = Date.now();
+    _aiTimer = setInterval(() => {
+      const s = Math.round((Date.now() - t0) / 1000);
+      document.getElementById('aiElapsed').textContent = s + ' s — a one-hour meeting usually takes a few minutes. Keep this page open.';
+    }, 1000);
+  }
+}
+async function aiPost(path, body, headers){
+  if (typeof _spCurrentAccount !== 'function' || !_spCurrentAccount()) throw new Error('Please sign in with your ODC Microsoft 365 account first.');
+  const token = await _spAcquireToken();
+  let res;
+  try {
+    res = await fetch(MEETING_AI_URL.replace(/\/+$/, '') + '/' + path, { method: 'POST', headers: Object.assign({ Authorization: 'Bearer ' + token }, headers || {}), body: body });
+  } catch(e) { throw new Error('Could not reach the server — check the internet connection and try again.'); }
+  let j = {};
+  try { j = await res.json(); } catch(e) {}
+  if (!res.ok) throw new Error(j.error || ('Server error ' + res.status + (res.status === 504 || res.status === 502 ? ' — the recording may be too long; try a shorter one.' : '')));
+  return j;
+}
+async function aiRun(file, transcriptText){
+  aiMsg('', '');
+  document.getElementById('aiProgress').style.display = 'block';
+  document.getElementById('aiTranscriptRow').style.display = 'none';
+  aiBusy(true);
+  let transcript = transcriptText;
+  try {
+    if (file) {
+      aiStep('aiStep1', 'run', 'Uploading and turning speech into text… (' + (file.size / 1048576).toFixed(1) + ' MB)');
+      aiStep('aiStep2', 'wait', 'Filling in the forms');
+      const t = await aiPost('transcribe', file, { 'Content-Type': file.type || 'application/octet-stream', 'X-File-Name': encodeURIComponent(file.name) });
+      transcript = t.transcript;
+      const mins = t.durationMs ? Math.round(t.durationMs / 60000) : null;
+      aiStep('aiStep1', 'done', 'Speech turned into text' + (mins != null ? ' (' + mins + ' min' + (t.speakers ? ', ' + t.speakers + ' speakers' : '') + ')' : ''));
+    } else {
+      aiStep('aiStep1', 'done', 'Transcript pasted');
+    }
+    try { if (_aiTranscriptUrl) URL.revokeObjectURL(_aiTranscriptUrl); } catch(e){}
+    _aiTranscriptUrl = URL.createObjectURL(new Blob([transcript], { type: 'text/plain;charset=utf-8' }));
+    const link = document.getElementById('aiTranscriptLink');
+    link.href = _aiTranscriptUrl;
+    const nm = (document.querySelector('[data-shared="p_name"]') || {}).value || 'meeting';
+    link.download = 'Transcript_' + nm.replace(/[^\w가-힣 -]+/g, '').trim().replace(/\s+/g, '-') + '_' + new Date().toISOString().slice(0, 10) + '.txt';
+
+    aiStep('aiStep2', 'run', 'Filling in the forms…');
+    const result = await aiPost('extract', JSON.stringify({ transcript: transcript, fields: schema() }), { 'Content-Type': 'application/json' });
+    aiStep('aiStep2', 'done', 'Forms filled');
+    aiBusy(false);
+    const res = aiApply(result, document.getElementById('aiOnlyEmpty').checked);
+    document.getElementById('aiAudio').value = '';
+    if (!res.filled) {
+      document.getElementById('aiTranscriptRow').style.display = 'block';
+      aiMsg('The meeting was transcribed, but no form answers were found. Check “Not discussed” in the list at the bottom of the page.', 'err');
+      return;
+    }
+    aiDone(res);
+  } catch(e) {
+    aiBusy(false);
+    const failedFirst = !transcript;
+    aiStep(failedFirst ? 'aiStep1' : 'aiStep2', 'err', failedFirst ? 'Speech to text failed' : 'Filling the forms failed');
+    if (transcript) document.getElementById('aiTranscriptRow').style.display = 'block';
+    aiMsg(esc((e && e.message) || e), 'err');
+  }
+}
+window.aiUploadAndFill = function(){
+  if (!MEETING_AI_URL) { aiMsg('Recording upload is not switched on yet — the Azure setup needs to be finished first.', 'err'); return; }
+  const f = document.getElementById('aiAudio').files[0];
+  if (!f) { aiMsg('Choose the meeting recording first.', 'err'); return; }
+  if (f.size > 100 * 1048576) { aiMsg('This recording is ' + Math.round(f.size / 1048576) + ' MB — the limit is 100 MB. Split it into two parts or save it at a lower quality.', 'err'); return; }
+  if (f.size < 2000) { aiMsg('This file looks empty.', 'err'); return; }
+  aiRun(f, null);
+};
+
+function aiApply(data, onlyEmpty){
+  if (!_keysBuilt) buildKeys();
+  const fields = (data && typeof data.fields === 'object') ? data.fields : data;
+  const evidence = (data && data.evidence) || {};
+  const res = { filled: 0, skipped: 0, unknown: [] };
+  const els = fieldEls();
+  const byKey = {}; els.forEach(el => { byKey[el.dataset.key] = el; });
+  schema();                                     // makes sure group keys exist
+
+  Object.keys(fields || {}).forEach(key => {
+    if (['client','evidence','check','missing','notes'].indexOf(key) !== -1 && fields === data) return;
+    const val = fields[key];
+    if (val == null || val === '' || (Array.isArray(val) && !val.length)) return;
+    const ev = evidence[key] ? String(evidence[key]) : '';
+    let touched = [];
+
+    // a) shared detail (p_name, p_dob …) — fills every form that shows it
+    const shared = els.filter(el => el.dataset.shared === key && !isChoice(el));
+    if (shared.length) {
+      const blank = shared.every(el => !String(el.value || '').trim());
+      if (onlyEmpty && !blank) { res.skipped++; return; }
+      if (typeof _applyShared === 'function') _applyShared({ [key]: normDate(shared[0], val) }, onlyEmpty);
+      else shared.forEach(el => { if (!onlyEmpty || !el.value) el.value = normDate(el, val); });
+      touched = shared;
+    }
+    // b) a group of options (choice / multi)
+    else if (groupMembers(key)) {
+      const members = groupMembers(key);
+      if (onlyEmpty && members.some(m => m.checked)) { res.skipped++; return; }
+      const wanted = Array.isArray(val) ? val.map(String) : [String(val)];
+      let hit = false;
+      members.forEach(m => {
+        const on = wanted.some(w => sameOpt(w, optionOf(m)));
+        if (m.type === 'radio') { if (on) { m.checked = true; hit = true; touched.push(m); } }
+        else { if (on) { m.checked = true; hit = true; touched.push(m); } else if (!onlyEmpty) m.checked = false; }
+      });
+      if (!hit) { res.unknown.push(key + '=' + wanted.join('/')); return; }
+    }
+    // c) a single field
+    else if (byKey[key]) {
+      const el = byKey[key];
+      if (isChoice(el)) {
+        if (onlyEmpty && el.checked) { res.skipped++; return; }
+        el.checked = truthy(val);
+      } else {
+        if (onlyEmpty && String(el.value || '').trim()) { res.skipped++; return; }
+        el.value = normDate(el, Array.isArray(val) ? val.join(', ') : val);
+      }
+      touched = [el];
+    }
+    else { res.unknown.push(key); return; }
+
+    touched.forEach(el => {
+      try { el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); } catch(e){}
+    });
+    _ai.marks[key] = ev || '(no quote given)';
+    res.filled++;
+  });
+
+  if (Array.isArray(data.check)) _ai.check = data.check.map(c => typeof c === 'string' ? { key: '', reason: c } : { key: c.key || '', reason: c.reason || '' });
+  if (Array.isArray(data.missing)) _ai.missing = data.missing.map(String);
+  _ai.unknown = res.unknown;
+  _ai.at = new Date().toISOString();
+  paintMarks(); updateBar();
+  if (typeof autoSaveDebounced === 'function') autoSaveDebounced();
+  return res;
+}
+function normDate(el, v){
+  v = String(v);
+  if (el.type !== 'date') return v;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+  const m = v.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})$/);            // Australian DD/MM/YYYY
+  return m ? m[3] + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0') : v;
+}
+
+// ── 5. Yellow marks until checked ───────────────────────────────────────
+const _ai = { marks: {}, check: [], missing: [], unknown: [], at: null };
+function elsForMark(key){
+  const els = fieldEls();
+  const shared = els.filter(el => el.dataset.shared === key && !isChoice(el));
+  if (shared.length) return shared;
+  const members = groupMembers(key);
+  if (members) return members.filter(m => m.checked);
+  return els.filter(el => el.dataset.key === key);
+}
+function markTarget(el){ return isChoice(el) ? (el.closest('label') || el) : el; }
+function paintMarks(){
+  document.querySelectorAll('.odc-ai').forEach(n => { n.classList.remove('odc-ai'); n.removeAttribute('data-ai-key'); if (n.dataset.aiTitle) { n.title = ''; delete n.dataset.aiTitle; } });
+  Object.keys(_ai.marks).forEach(key => {
+    elsForMark(key).forEach(el => {
+      const t = markTarget(el);
+      t.classList.add('odc-ai'); t.setAttribute('data-ai-key', key);
+      t.title = '🎙️ From the meeting: ' + _ai.marks[key] + '\n(Change it or click “All checked” once confirmed.)'; t.dataset.aiTitle = '1';
+    });
+  });
+}
+function confirmKey(key){ delete _ai.marks[key]; paintMarks(); updateBar(); if (typeof autoSaveDebounced === 'function') autoSaveDebounced(); }
+// A person typing or clicking in a marked field counts as checking it
+['input', 'change'].forEach(evt => document.addEventListener(evt, e => {
+  if (!e.isTrusted || !Object.keys(_ai.marks).length) return;
+  const el = e.target; if (!el || !el.closest) return;
+  const m = (el.closest('.odc-ai')) || null;
+  let key = m && m.getAttribute('data-ai-key');
+  if (!key && el.dataset && el.dataset.keyGroup) {          // radio/tick in a group that was filled
+    const g = el.dataset.keyGroup; key = _groupKeyMap[g];
+    if (key && !_ai.marks[key]) key = null;
+  }
+  if (key) confirmKey(key);
+}, true));
+
+function updateBar(){
+  const n = Object.keys(_ai.marks).length;
+  const bar = document.getElementById('aiBar');
+  if (!n && !_ai.check.length && !_ai.missing.length) { bar.classList.remove('show'); document.getElementById('aiList').classList.remove('show'); return; }
+  const bits = [];
+  bits.push('🎙️ <strong>' + n + '</strong> to check');
+  if (_ai.check.length) bits.push('<strong>' + _ai.check.length + '</strong> unclear');
+  if (_ai.missing.length) bits.push('<strong>' + _ai.missing.length + '</strong> not discussed');
+  document.getElementById('aiBarText').innerHTML = bits.join(' · ');
+  bar.classList.add('show');
+  if (document.getElementById('aiList').classList.contains('show')) renderList();
+}
+function labelFor(key){
+  const f = schema().find(x => x.key === key);
+  return f ? (f.form + ' › ' + (f.label || key)) : key;
+}
+function renderList(){
+  const L = document.getElementById('aiList');
+  let h = '';
+  const keys = Object.keys(_ai.marks);
+  if (keys.length) h += '<h4>Filled from the meeting — please check</h4><ul>' + keys.map(k => '<li><a onclick="aiGoTo(\'' + esc(k) + '\')">' + esc(labelFor(k)) + '</a><br><span style="color:#777">“' + esc(_ai.marks[k]) + '”</span></li>').join('') + '</ul>';
+  if (_ai.check.length) h += '<h4>Unclear in the meeting — confirm with the client</h4><ul>' + _ai.check.map(c => '<li>' + (c.key ? '<a onclick="aiGoTo(\'' + esc(c.key) + '\')">' + esc(labelFor(c.key)) + '</a> — ' : '') + esc(c.reason) + '</li>').join('') + '</ul>';
+  if (_ai.missing.length) h += '<h4>Not discussed</h4><ul>' + _ai.missing.map(m => '<li>' + esc(m) + '</li>').join('') + '</ul>';
+  if (_ai.unknown && _ai.unknown.length) h += '<h4>Not recognised (ignored)</h4><ul>' + _ai.unknown.map(m => '<li>' + esc(m) + '</li>').join('') + '</ul>';
+  h += '<div style="text-align:right;margin-top:8px"><button type="button" onclick="aiClearNotes()" style="font-size:.78rem;padding:3px 9px;border:1px solid #ccc;border-radius:6px;background:#fff;cursor:pointer">Clear unclear / not-discussed notes</button></div>';
+  L.innerHTML = h;
+}
+window.aiToggleList = function(){ const L = document.getElementById('aiList'); if (L.classList.toggle('show')) renderList(); };
+window.aiConfirmAll = function(){
+  if (!confirm('Remove all yellow marks?\n\nDo this only after you have checked every field filled from the meeting.')) return;
+  _ai.marks = {}; paintMarks(); updateBar(); if (typeof autoSaveDebounced === 'function') autoSaveDebounced();
+};
+window.aiClearNotes = function(){ _ai.check = []; _ai.missing = []; _ai.unknown = []; updateBar(); renderList(); if (typeof autoSaveDebounced === 'function') autoSaveDebounced(); };
+window.aiGoTo = function(key){
+  const el = elsForMark(key)[0] || (groupMembers(key) || [])[0] || document.querySelector('[data-key="' + (window.CSS && CSS.escape ? CSS.escape(key) : key) + '"]');
+  if (!el) return;
+  const sec = el.closest('.form-section');
+  if (sec && !sec.classList.contains('active') && typeof showForm === 'function') showForm(sec.id.replace(/^form-/, ''));
+  setTimeout(() => { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); try { el.focus({ preventScroll: true }); } catch(e){} }, 60);
+};
+
+// Saved with the record so marks survive a save / reopen
+window._odcAiState = function(){
+  if (!Object.keys(_ai.marks).length && !_ai.check.length && !_ai.missing.length) return null;
+  return JSON.parse(JSON.stringify(_ai));
+};
+window._odcAiRestore = function(st){
+  _ai.marks = (st && st.marks) || {}; _ai.check = (st && st.check) || []; _ai.missing = (st && st.missing) || [];
+  _ai.unknown = (st && st.unknown) || []; _ai.at = (st && st.at) || null;
+  paintMarks(); updateBar();
+};
+window._odcAiClearAll = function(){ window._odcAiRestore(null); };
+
+// Build names now (forms are already on the page), then add the nav button
+buildKeys();
+const nav = document.querySelector('#navBar > div:last-child');
+if (nav) {
+  const b = document.createElement('button');
+  b.className = 'nav-btn'; b.type = 'button';
+  b.style.cssText = 'background:#fff8d6; color:#6b5200; border-color:#e3c34a;';
+  b.title = 'Fill the forms from the meeting recording';
+  b.textContent = '🎙️ Import from Meeting';
+  b.onclick = window.aiOpen;
+  nav.insertBefore(b, nav.firstChild);
+}
+// Restore marks saved in this browser (the page restores values ~500 ms after load)
+setTimeout(() => { try { const raw = localStorage.getItem(SAVE_KEY); const d = raw && JSON.parse(raw); if (d && d.ai) window._odcAiRestore(d.ai); } catch(e){} }, 900);
 })();
 </script>
 
