@@ -1830,19 +1830,6 @@ function _collectSignatures(){
 }
 function _collectFull(){
   const full = { v: _collectAllValues(), sigs: _collectSignatures() };
-  // Stable shared-key snapshot (p_name, p_dob, address, GP, NOK, ...) so other
-  // ODC apps (e.g. the Care Plan Workflow's "Import from Onboarding") can read
-  // this record without depending on positional values or generated keys.
-  try {
-    const sh = {};
-    document.querySelectorAll('[data-shared]').forEach(el => {
-      const k = el.dataset.shared;
-      if (!k) return;
-      const v = (el.type === 'checkbox' || el.type === 'radio') ? (el.checked ? '1' : '') : (el.value || '');
-      if (v && !sh[k]) sh[k] = v;
-    });
-    full.shared = sh;
-  } catch(e){}
   // Named copy of every field (see IMPORT FROM MEETING) — survives fields being added or moved
   try { if (typeof window._odcCollectKeyed === 'function') full.k = window._odcCollectKeyed(); } catch(e){}
   try { if (typeof window._odcAiState === 'function') full.ai = window._odcAiState(); } catch(e){}
@@ -2361,7 +2348,6 @@ window.saveToSharePoint = async function(){
       savedBy: savedBy,
       values: full.v,
       keyed: full.k,
-      shared: full.shared,
       ai: full.ai,
       sigs: full.sigs
     };
@@ -3924,6 +3910,7 @@ if (typeof _origPickerOpen === 'function') {
 </script>
 
 
+
 <!-- ═══════════════════════════════════════════════════════════════════════
      IMPORT FROM MEETING  (added Oct 2026)
      1. Every form field gets a stable name (data-key) built from its form,
@@ -3968,11 +3955,11 @@ if (typeof _origPickerOpen === 'function') {
   #aiList a { color:#0b4a8a; cursor:pointer; text-decoration:underline; }
 </style>
 
-<div id="aiBackdrop" class="ai-backdrop no-print" onclick="if(event.target===this && !window.__aiBusy)aiClose()">
+<div id="aiBackdrop" class="ai-backdrop no-print" onclick="if(event.target===this)aiClose()">
   <div class="ai-card">
     <div class="ai-head">
       <h3>🎙️ Import from Meeting</h3>
-      <button class="ai-x" type="button" onclick="if(!window.__aiBusy)aiClose()">&times;</button>
+      <button class="ai-x" type="button" onclick="aiClose()">&times;</button>
     </div>
     <div style="color:#555; font-size:.82rem; margin-top:4px;">Upload the meeting recording. It is turned into text and the answers are filled in for you — everything filled is marked <span class="odc-ai" style="cursor:default">yellow</span> until you check it.</div>
 
@@ -3980,14 +3967,16 @@ if (typeof _origPickerOpen === 'function') {
 
     <div class="ai-step">Meeting recording</div>
     <input type="file" id="aiAudio" accept="audio/*,.m4a,.mp3,.wav,.ogg,.oga,.opus,.webm,.aac,.flac,.amr,.wma" style="font-size:.86rem; width:100%;">
-    <div style="color:#777; font-size:.76rem; margin-top:5px;">MP3, M4A, WAV, OGG or WebM · up to 100 MB (about 1–2 hours) · processed by ODC's Microsoft Azure in Australia; the recording and transcript are not kept on the server.</div>
+    <div style="color:#777; font-size:.76rem; margin-top:5px;">MP3, M4A, WAV, OGG or WebM · up to 500 MB (several hours) · processed by ODC's Microsoft Azure in Australia. The recording is deleted as soon as it is transcribed; the answers are deleted once they are in the form (or after 6 hours).</div>
     <label style="display:flex; gap:7px; align-items:center; margin-top:10px; font-size:.84rem; cursor:pointer;">
       <input type="checkbox" id="aiOnlyEmpty" checked> Only fill blank fields (keep anything already typed)
     </label>
 
     <div id="aiProgress" style="display:none; margin-top:12px; padding:10px 12px; border:1px solid #e3e8dc; border-radius:8px; background:#f8faf5; font-size:.84rem; line-height:1.8;">
-      <div id="aiStep1">⏳ Uploading and turning speech into text…</div>
-      <div id="aiStep2" style="color:#999">○ Filling in the forms</div>
+      <div id="aiStep1">○ Uploading the recording</div>
+      <div id="aiStep2" style="color:#999">○ Turning speech into text</div>
+      <div id="aiStep3" style="color:#999">○ Filling in the forms</div>
+      <div id="aiBgNote" style="color:#556; font-size:.76rem; display:none;">You can close this window or work on other forms — when you come back, open <strong>🎙️ Import from Meeting</strong> to collect the result.</div>
       <div id="aiElapsed" style="color:#888; font-size:.76rem;"></div>
     </div>
     <div id="aiMsg" class="ai-msg"></div>
@@ -4008,7 +3997,7 @@ if (typeof _origPickerOpen === 'function') {
     </details>
 
     <div style="display:flex; justify-content:flex-end; gap:8px; padding-top:12px; margin-top:12px; border-top:1px solid #eee;">
-      <button type="button" class="btn-odc-outline" id="aiCancelBtn" onclick="aiClose()">Cancel</button>
+      <button type="button" class="btn-odc-outline" id="aiCancelBtn" onclick="aiClose()">Close</button>
       <button type="button" class="btn-odc" id="aiGoBtn" onclick="aiUploadAndFill()">🎙️ Upload &amp; fill</button>
     </div>
   </div>
@@ -4027,7 +4016,7 @@ if (typeof _origPickerOpen === 'function') {
 
 // ── Azure Function that turns a recording into answers (see the setup guide).
 //    Paste the Function App URL here after deploying, e.g. 'https://odc-meeting-ai.azurewebsites.net/api'
-const MEETING_AI_URL = '';
+const MEETING_AI_URL = 'https://odc-meeting-ai-7k3m.azurewebsites.net/api';
 
 // ── 1. Stable field names ───────────────────────────────────────────────
 const SKIP_IN = '#navBar, #printAllBackdrop, #saveBackdrop, #cfBackdrop, #aiBackdrop, #clientPicker, #loginGate';
@@ -4273,6 +4262,8 @@ window.aiOpen = function(){
   if (!window.__aiBusy) { document.getElementById('aiProgress').style.display = 'none'; document.getElementById('aiTranscriptRow').style.display = 'none'; }
   document.getElementById('aiNotSetUp').style.display = MEETING_AI_URL ? 'none' : 'block';
   document.getElementById('aiBackdrop').classList.add('show'); document.body.style.overflow = 'hidden';
+  const pending = jobLoad();
+  if (pending && MEETING_AI_URL && !window.__aiBusy) aiResume(pending);
 };
 window.aiClose = function(){ document.getElementById('aiBackdrop').classList.remove('show'); document.body.style.overflow = ''; };
 window.aiReadFile = function(inp){
@@ -4314,92 +4305,196 @@ window.aiApplyFromInput = async function(){
   await aiRun(null, text);
 };
 
-// ── Upload a recording → Azure (speech to text, then form answers) → fill ──
+// ── Upload a recording → Azure (background job: speech to text, then form answers) → fill ──
 window.__aiBusy = false;
-let _aiTimer = null, _aiTranscriptUrl = null;
+const JOB_KEY = 'odc_ai_job_v1';
+let _aiTimer = null, _aiTranscriptUrl = null, _aiPoll = null;
 function aiStep(id, state, text){
   const el = document.getElementById(id);
   el.style.color = state === 'wait' ? '#999' : (state === 'err' ? '#a0331a' : '');
   el.textContent = (state === 'done' ? '✓ ' : state === 'run' ? '⏳ ' : state === 'err' ? '✗ ' : '○ ') + text;
 }
-function aiBusy(on){
+function aiBusy(on, since){
   window.__aiBusy = on;
   document.getElementById('aiGoBtn').disabled = on;
-  document.getElementById('aiCancelBtn').disabled = on;
   document.getElementById('aiGoBtn').textContent = on ? 'Working…' : '🎙️ Upload & fill';
   clearInterval(_aiTimer);
   if (on) {
-    const t0 = Date.now();
-    _aiTimer = setInterval(() => {
+    const t0 = since || Date.now();
+    const tick = () => {
       const s = Math.round((Date.now() - t0) / 1000);
-      document.getElementById('aiElapsed').textContent = s + ' s — a one-hour meeting usually takes a few minutes. Keep this page open.';
-    }, 1000);
-  }
+      document.getElementById('aiElapsed').textContent = (s >= 60 ? Math.floor(s / 60) + ' min ' : '') + (s % 60) + ' s — a one-hour meeting usually takes a few minutes.';
+    };
+    tick(); _aiTimer = setInterval(tick, 1000);
+  } else document.getElementById('aiElapsed').textContent = '';
 }
-async function aiPost(path, body, headers){
+function jobSave(j){ try { if (j) localStorage.setItem(JOB_KEY, JSON.stringify(j)); else localStorage.removeItem(JOB_KEY); } catch(e){} }
+function jobLoad(){ try { const j = JSON.parse(localStorage.getItem(JOB_KEY) || 'null'); return (j && j.id && Date.now() - j.at < 6 * 3600 * 1000) ? j : null; } catch(e){ return null; } }
+
+async function aiCall(method, path, body, headers){
   if (typeof _spCurrentAccount !== 'function' || !_spCurrentAccount()) throw new Error('Please sign in with your ODC Microsoft 365 account first.');
   const token = await _spAcquireToken();
   let res;
   try {
-    res = await fetch(MEETING_AI_URL.replace(/\/+$/, '') + '/' + path, { method: 'POST', headers: Object.assign({ Authorization: 'Bearer ' + token }, headers || {}), body: body });
+    res = await fetch(MEETING_AI_URL.replace(/\/+$/, '') + '/' + path, { method: method, headers: Object.assign({ Authorization: 'Bearer ' + token }, headers || {}), body: body });
   } catch(e) { throw new Error('Could not reach the server — check the internet connection and try again.'); }
   let j = {};
   try { j = await res.json(); } catch(e) {}
-  if (!res.ok) throw new Error(j.error || ('Server error ' + res.status + (res.status === 504 || res.status === 502 ? ' — the recording may be too long; try a shorter one.' : '')));
+  if (!res.ok) { const err = new Error(j.error || ('Server error ' + res.status)); err.status = res.status; throw err; }
   return j;
 }
-async function aiRun(file, transcriptText){
+const aiPost = (path, body, headers) => aiCall('POST', path, body, headers);
+
+// Straight to ODC's storage with progress (XMLHttpRequest reports upload progress; fetch does not)
+function aiUploadBlob(url, headers, file, onProgress){
+  return new Promise((resolve, reject) => {
+    const x = new XMLHttpRequest();
+    x.open('PUT', url);
+    Object.keys(headers || {}).forEach(k => x.setRequestHeader(k, headers[k]));
+    x.upload.onprogress = e => { if (e.lengthComputable) onProgress(e.loaded / e.total); };
+    x.onload = () => (x.status >= 200 && x.status < 300) ? resolve() : reject(new Error('Upload failed (' + x.status + '). Please try again.'));
+    x.onerror = () => reject(new Error('Upload failed — check the internet connection and try again.'));
+    x.send(file);
+  });
+}
+
+function showTranscriptLink(transcript){
+  try { if (_aiTranscriptUrl) URL.revokeObjectURL(_aiTranscriptUrl); } catch(e){}
+  _aiTranscriptUrl = URL.createObjectURL(new Blob([transcript], { type: 'text/plain;charset=utf-8' }));
+  const link = document.getElementById('aiTranscriptLink');
+  link.href = _aiTranscriptUrl;
+  const nm = (document.querySelector('[data-shared="p_name"]') || {}).value || 'meeting';
+  link.download = 'Transcript_' + nm.replace(/[^\w가-힣 -]+/g, '').trim().replace(/\s+/g, '-') + '_' + new Date().toISOString().slice(0, 10) + '.txt';
+}
+function aiFail(stepId, label, e){
+  clearTimeout(_aiPoll); aiBusy(false);
+  aiStep(stepId, 'err', label);
+  document.getElementById('aiBgNote').style.display = 'none';
+  aiMsg(esc((e && e.message) || e), 'err');
+}
+
+// Apply a finished result — checking it still belongs to the client on screen
+function aiFinish(job, st){
+  const shownName = String((document.querySelector('[data-shared="p_name"]') || {}).value || '').trim();
+  const forName = String(job.client || (st.result && st.result.client) || '').trim();
+  if (shownName && job.client && shownName !== job.client) {
+    if (!confirm('This meeting recording was uploaded for “' + job.client + '”, but the form now shows “' + shownName + '”.\n\nFill these forms with it anyway?')) {
+      aiMsg('Not filled. Open ' + esc(job.client) + '’s forms and open Import from Meeting again to collect the result.', 'err');
+      aiBusy(false); return false;
+    }
+  }
+  if (st.transcript) showTranscriptLink(st.transcript);
+  const res = aiApply(st.result || {}, job.onlyEmpty !== false);
+  jobSave(null);
+  aiCall('DELETE', 'jobs/' + job.id).catch(() => {});
+  aiBusy(false);
+  document.getElementById('aiAudio').value = '';
+  if (!res.filled) {
+    document.getElementById('aiTranscriptRow').style.display = 'block';
+    aiMsg('The meeting was transcribed, but no form answers were found. See “Not discussed” in the list at the bottom of the page.', 'err');
+    return true;
+  }
+  aiDone(res, forName ? '<br>Client in the recording: <strong>' + esc(forName) + '</strong>' : '');
+  return true;
+}
+
+async function aiPollJob(job){
+  clearTimeout(_aiPoll);
+  let st;
+  try { st = await aiCall('GET', 'jobs/' + job.id); }
+  catch(e) {
+    if (e.status === 404) { jobSave(null); return aiFail('aiStep2', 'Recording job not found', new Error('This recording job has expired or was removed. Please upload the recording again.')); }
+    _aiPoll = setTimeout(() => aiPollJob(job), 15000);        // network blip — keep trying
+    return;
+  }
+  const mins = st.durationMs ? Math.round(st.durationMs / 60000) + ' min' + (st.speakers ? ', ' + st.speakers + ' speakers' : '') : '';
+  if (st.state === 'queued' || st.state === 'transcribing') {
+    aiStep('aiStep2', 'run', 'Turning speech into text…');
+  } else if (st.state === 'filling') {
+    aiStep('aiStep2', 'done', 'Speech turned into text' + (mins ? ' (' + mins + ')' : ''));
+    aiStep('aiStep3', 'run', 'Filling in the forms…');
+  } else if (st.state === 'done') {
+    aiStep('aiStep2', 'done', 'Speech turned into text' + (mins ? ' (' + mins + ')' : ''));
+    aiStep('aiStep3', 'done', 'Forms filled');
+    aiFinish(job, st);
+    return;
+  } else if (st.state === 'error') {
+    jobSave(null);
+    aiCall('DELETE', 'jobs/' + job.id).catch(() => {});
+    return aiFail(st.durationMs ? 'aiStep3' : 'aiStep2', 'Processing failed', new Error(st.message || 'Processing failed.'));
+  }
+  if (Date.now() - job.at > 90 * 60 * 1000) return aiFail('aiStep2', 'Taking too long', new Error('This is taking much longer than expected. Close this window and try again later — the result will be collected automatically if it finishes.'));
+  _aiPoll = setTimeout(() => aiPollJob(job), 5000);
+}
+
+function aiShowProgress(){
   aiMsg('', '');
   document.getElementById('aiProgress').style.display = 'block';
   document.getElementById('aiTranscriptRow').style.display = 'none';
-  aiBusy(true);
-  let transcript = transcriptText;
-  try {
-    if (file) {
-      aiStep('aiStep1', 'run', 'Uploading and turning speech into text… (' + (file.size / 1048576).toFixed(1) + ' MB)');
-      aiStep('aiStep2', 'wait', 'Filling in the forms');
-      const t = await aiPost('transcribe', file, { 'Content-Type': file.type || 'application/octet-stream', 'X-File-Name': encodeURIComponent(file.name) });
-      transcript = t.transcript;
-      const mins = t.durationMs ? Math.round(t.durationMs / 60000) : null;
-      aiStep('aiStep1', 'done', 'Speech turned into text' + (mins != null ? ' (' + mins + ' min' + (t.speakers ? ', ' + t.speakers + ' speakers' : '') + ')' : ''));
-    } else {
-      aiStep('aiStep1', 'done', 'Transcript pasted');
-    }
-    try { if (_aiTranscriptUrl) URL.revokeObjectURL(_aiTranscriptUrl); } catch(e){}
-    _aiTranscriptUrl = URL.createObjectURL(new Blob([transcript], { type: 'text/plain;charset=utf-8' }));
-    const link = document.getElementById('aiTranscriptLink');
-    link.href = _aiTranscriptUrl;
-    const nm = (document.querySelector('[data-shared="p_name"]') || {}).value || 'meeting';
-    link.download = 'Transcript_' + nm.replace(/[^\w가-힣 -]+/g, '').trim().replace(/\s+/g, '-') + '_' + new Date().toISOString().slice(0, 10) + '.txt';
+}
+function aiResume(job){
+  aiShowProgress();
+  aiStep('aiStep1', 'done', 'Recording uploaded' + (job.fileName ? ' (' + job.fileName + ')' : ''));
+  aiStep('aiStep2', 'run', 'Turning speech into text…');
+  aiStep('aiStep3', 'wait', 'Filling in the forms');
+  document.getElementById('aiBgNote').style.display = 'block';
+  aiBusy(true, job.at);
+  aiPollJob(job);
+}
 
-    aiStep('aiStep2', 'run', 'Filling in the forms…');
-    const result = await aiPost('extract', JSON.stringify({ transcript: transcript, fields: schema() }), { 'Content-Type': 'application/json' });
-    aiStep('aiStep2', 'done', 'Forms filled');
+async function aiRunRecording(file){
+  aiShowProgress();
+  aiStep('aiStep1', 'run', 'Uploading the recording… 0%');
+  aiStep('aiStep2', 'wait', 'Turning speech into text');
+  aiStep('aiStep3', 'wait', 'Filling in the forms');
+  document.getElementById('aiBgNote').style.display = 'none';
+  aiBusy(true);
+  let job;
+  try {
+    const created = await aiPost('jobs', JSON.stringify({ fileName: file.name, contentType: file.type || 'application/octet-stream', size: file.size, fields: schema() }), { 'Content-Type': 'application/json' });
+    await aiUploadBlob(created.uploadUrl, created.uploadHeaders, file, f => aiStep('aiStep1', 'run', 'Uploading the recording… ' + Math.round(f * 100) + '%'));
+    await aiPost('jobs/' + created.jobId + '/start', '');
+    job = { id: created.jobId, at: Date.now(), fileName: file.name, onlyEmpty: document.getElementById('aiOnlyEmpty').checked,
+            client: String((document.querySelector('[data-shared="p_name"]') || {}).value || '').trim() };
+    jobSave(job);
+  } catch(e) { return aiFail('aiStep1', 'Upload failed', e); }
+  aiStep('aiStep1', 'done', 'Recording uploaded (' + (file.size / 1048576).toFixed(1) + ' MB)');
+  aiStep('aiStep2', 'run', 'Turning speech into text…');
+  document.getElementById('aiBgNote').style.display = 'block';
+  aiPollJob(job);
+}
+
+// Pasted transcript (short request, no job needed)
+async function aiRun(file, transcriptText){
+  if (file) return aiRunRecording(file);
+  aiShowProgress();
+  aiStep('aiStep1', 'done', 'Transcript pasted');
+  aiStep('aiStep2', 'done', 'Text ready');
+  aiStep('aiStep3', 'run', 'Filling in the forms…');
+  aiBusy(true);
+  try {
+    const result = await aiPost('extract', JSON.stringify({ transcript: transcriptText, fields: schema() }), { 'Content-Type': 'application/json' });
+    aiStep('aiStep3', 'done', 'Forms filled');
     aiBusy(false);
     const res = aiApply(result, document.getElementById('aiOnlyEmpty').checked);
-    document.getElementById('aiAudio').value = '';
-    if (!res.filled) {
-      document.getElementById('aiTranscriptRow').style.display = 'block';
-      aiMsg('The meeting was transcribed, but no form answers were found. Check “Not discussed” in the list at the bottom of the page.', 'err');
-      return;
-    }
+    if (!res.filled) { aiMsg('No form answers were found in this transcript.', 'err'); return; }
     aiDone(res);
-  } catch(e) {
-    aiBusy(false);
-    const failedFirst = !transcript;
-    aiStep(failedFirst ? 'aiStep1' : 'aiStep2', 'err', failedFirst ? 'Speech to text failed' : 'Filling the forms failed');
-    if (transcript) document.getElementById('aiTranscriptRow').style.display = 'block';
-    aiMsg(esc((e && e.message) || e), 'err');
-  }
+  } catch(e) { aiFail('aiStep3', 'Filling the forms failed', e); }
 }
 window.aiUploadAndFill = function(){
   if (!MEETING_AI_URL) { aiMsg('Recording upload is not switched on yet — the Azure setup needs to be finished first.', 'err'); return; }
+  if (jobLoad()) { aiMsg('A recording is still being processed — wait for it to finish first.', 'err'); return; }
   const f = document.getElementById('aiAudio').files[0];
   if (!f) { aiMsg('Choose the meeting recording first.', 'err'); return; }
-  if (f.size > 100 * 1048576) { aiMsg('This recording is ' + Math.round(f.size / 1048576) + ' MB — the limit is 100 MB. Split it into two parts or save it at a lower quality.', 'err'); return; }
+  if (f.size > 500 * 1048576) { aiMsg('This recording is ' + Math.round(f.size / 1048576) + ' MB — the limit is 500 MB.', 'err'); return; }
   if (f.size < 2000) { aiMsg('This file looks empty.', 'err'); return; }
-  aiRun(f, null);
+  aiRunRecording(f);
 };
+// Coming back to the page while a recording is still being processed
+setTimeout(() => {
+  const j = jobLoad();
+  if (j && MEETING_AI_URL && !window.__aiBusy && typeof _spCurrentAccount === 'function' && _spCurrentAccount()) { window.aiOpen(); aiResume(j); }
+}, 2500);
 
 function aiApply(data, onlyEmpty){
   if (!_keysBuilt) buildKeys();
